@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Ошибка {{ code }} · {{ app_name }}{% endblock %}
+{% block main_class %}flex min-h-full items-center justify-center px-4 py-12{% endblock %}
+{% block flash %}{% endblock %}
+
+{% block content %}
+<div class="text-center">
+  <p class="text-5xl font-semibold text-indigo-600">{{ code }}</p>
+  <h1 class="mt-4 text-xl font-semibold text-slate-900">
+    {% if code == 404 %}Страница не найдена{% elif code == 403 %}Доступ запрещён{% else %}Что-то пошло не так{% endif %}
+  </h1>
+  <p class="mt-2 text-sm text-slate-500">{{ message }}</p>
+  <a href="/" class="btn btn-primary mt-6">На главную</a>
+</div>
+{% endblock %}

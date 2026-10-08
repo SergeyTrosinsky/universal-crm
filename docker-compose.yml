@@ -1,0 +1,92 @@
+# Universal CRM: приложение + PostgreSQL + автоматические резервные копии (+ HTTPS по желанию).
+#
+#   cp .env.docker.example .env.docker      # заполните пароли
+#   docker compose --env-file .env.docker up -d --build
+#   с доменом и HTTPS:  docker compose --env-file .env.docker --profile https up -d --build
+name: universal-crm
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Задайте POSTGRES_PASSWORD в .env.docker}
+      POSTGRES_DB: crm
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm -d crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    image: universal-crm:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://crm:${POSTGRES_PASSWORD}@db:5432/crm
+      AUTO_CREATE_SCHEMA: "false"          # схему ведут миграции (запускаются при старте контейнера)
+      DEBUG: "false"
+      SECRET_KEY: ${SECRET_KEY:?Задайте SECRET_KEY в .env.docker}
+      APP_NAME: ${APP_NAME:-Universal CRM}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Moscow}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}     # true, если сайт открывается по https
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}   # true за Caddy / nginx
+      FIRST_ADMIN_EMAIL: ${FIRST_ADMIN_EMAIL:-}
+      FIRST_ADMIN_PASSWORD: ${FIRST_ADMIN_PASSWORD:-}
+      FIRST_ADMIN_NAME: ${FIRST_ADMIN_NAME:-Администратор}
+      IMPORT_MAX_ROWS: ${IMPORT_MAX_ROWS:-5000}
+      IMPORT_MAX_FILE_MB: ${IMPORT_MAX_FILE_MB:-5}
+    volumes:
+      - app_data:/data
+    # По умолчанию порт открыт только на самом сервере. Без домена и HTTPS поставьте APP_BIND=0.0.0.0.
+    ports:
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-8000}:8000"
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: crm
+      PGDATABASE: crm
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      TZ: ${APP_TIMEZONE:-Europe/Moscow}
+    volumes:
+      - ./backups:/backups
+      - ./docker/backup.sh:/backup.sh:ro
+    # tr убирает возможные переводы строк Windows в скрипте
+    entrypoint: ["/bin/sh", "-c", "tr -d '\\r' < /backup.sh > /tmp/backup.sh && exec sh /tmp/backup.sh"]
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["https"]
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      DOMAIN: ${DOMAIN:?Для профиля https задайте DOMAIN в .env.docker}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  app_data:
+  caddy_data:
+  caddy_config:

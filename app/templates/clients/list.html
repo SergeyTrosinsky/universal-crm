@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% from "partials/pagination.html" import pagination, sort_th %}
+{% from "partials/filters.html" import custom_filter_inputs %}
+{% from "partials/data_exchange.html" import data_menu %}
+{% block title %}{{ ui.client.pl }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{{ ui.client.pl }}</h1>
+  <div class="flex items-center gap-2">
+    {{ data_menu(request, 'clients', '/clients', can(user, 'clients:write')) }}
+    {% if can(user, 'clients:write') %}<a href="/clients/new" class="btn btn-primary">Добавить {{ ui.client.acc }}</a>{% endif %}
+  </div>
+</div>
+
+<form method="get" action="/clients" data-filter-form class="card mb-4 p-4">
+  {% if request.query_params.get('sort') %}<input type="hidden" name="sort" value="{{ request.query_params.get('sort') }}">{% endif %}
+  <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_11rem_13rem_auto]">
+    <div>
+      <label for="q" class="sr-only">Поиск</label>
+      <input id="q" name="q" type="search" value="{{ q }}" placeholder="Поиск: имя, телефон, email, компания, VIN…" class="input" autocomplete="off">
+    </div>
+    <div>
+      <label for="type" class="sr-only">Тип</label>
+      <select id="type" name="type" class="input">
+        <option value="">Все типы</option>
+        {% for t in client_types %}<option value="{{ t }}" {{ 'selected' if type_filter == t else '' }}>{{ client_type_labels[t] }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="owner" class="sr-only">Ответственный</label>
+      <select id="owner" name="owner" class="input">
+        <option value="">Все ответственные</option>
+        {% for o in owners %}<option value="{{ o.id }}" {{ 'selected' if owner_filter == (o.id | string) else '' }}>{{ o.label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="flex gap-2">
+      <button type="submit" class="btn btn-primary">Найти</button>
+      {% if has_filters %}<a href="/clients" class="btn btn-secondary">Сбросить</a>{% endif %}
+    </div>
+  </div>
+  {% if filter_fields %}
+  <details class="mt-3" {{ 'open' if filters else '' }}>
+    <summary class="cursor-pointer text-sm font-medium text-slate-600 hover:text-slate-900">Фильтры по полям{% if filters %} ({{ filters | length }}){% endif %}</summary>
+    <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{{ custom_filter_inputs(filter_fields, filters) }}</div>
+  </details>
+  {% endif %}
+</form>
+
+<div class="card overflow-hidden">
+  {% if page.items %}
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200">
+      <thead class="bg-slate-50">
+        <tr>
+          {{ sort_th(request, ui.client.sg, 'name', sort) }}
+          <th scope="col" class="th">Контакты</th>
+          <th scope="col" class="th">Ответственный</th>
+          {% for f in list_fields %}<th scope="col" class="th">{{ f.label }}</th>{% endfor %}
+          {{ sort_th(request, 'Создан', 'created', sort) }}
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for c in page.items %}
+        {% set vals = cf_map(c) %}
+        <tr class="hover:bg-slate-50/60">
+          <td class="td">
+            <a href="/clients/{{ c.id }}" class="font-medium text-slate-900 hover:text-indigo-600">{{ c.name }}</a>
+            <div class="text-xs text-slate-500">{{ client_type_labels[c.type.value] }}{% if c.company_name %} · {{ c.company_name }}{% endif %}</div>
+          </td>
+          <td class="td">
+            {% if c.phone %}<div>{{ c.phone }}</div>{% endif %}
+            {% if c.email %}<div class="text-slate-500">{{ c.email }}</div>{% endif %}
+            {% if not c.phone and not c.email %}<span class="text-slate-400">—</span>{% endif %}
+          </td>
+          <td class="td">{{ c.owner.full_name if c.owner else '—' }}</td>
+          {% for f in list_fields %}<td class="td">{{ cf_display(f, vals.get(f.id)) }}</td>{% endfor %}
+          <td class="td whitespace-nowrap text-slate-500">{{ c.created_at | dt('%d.%m.%Y') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="px-6 py-12 text-center">
+    {% if has_filters %}
+      <p class="text-sm font-medium text-slate-900">Ничего не найдено</p>
+      <p class="mt-1 text-sm text-slate-500">Измените условия поиска или сбросьте фильтры.</p>
+      <a href="/clients" class="btn btn-secondary mt-4">Сбросить фильтры</a>
+    {% else %}
+      <p class="text-sm font-medium text-slate-900">{{ ui.client.pl }}: пока пусто</p>
+      <p class="mt-1 text-sm text-slate-500">Добавьте первую запись, чтобы начать работу.</p>
+      {% if can(user, 'clients:write') %}<a href="/clients/new" class="btn btn-primary mt-4">Добавить {{ ui.client.acc }}</a>{% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{{ pagination(request, page) }}
+<script src="/static/js/filters.js" defer></script>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import field, error_box %}
+{% block title %}Профиль · {{ app_name }}{% endblock %}
+
+{% block content %}
+<h1 class="mb-6 text-2xl font-semibold tracking-tight text-slate-900">Профиль</h1>
+{{ error_box(error) }}
+
+<div class="grid gap-6 lg:grid-cols-2">
+  <section class="card p-6">
+    <h2 class="mb-4 text-base font-semibold text-slate-900">Личные данные</h2>
+    <form method="post" action="/profile" class="space-y-4">
+      {{ field('Имя', 'full_name', user.full_name, 'text', true, '', 'name') }}
+      {{ field('Email', 'email', user.email, 'email', false, '', 'off', true) }}
+      <dl class="grid grid-cols-2 gap-4 text-sm">
+        <div><dt class="text-slate-500">Роль</dt><dd class="mt-0.5 font-medium text-slate-900">{{ user.role.name }}</dd></div>
+        <div><dt class="text-slate-500">Последний вход</dt><dd class="mt-0.5 font-medium text-slate-900">{{ user.last_login_at | dt }}</dd></div>
+      </dl>
+      <button type="submit" class="btn btn-primary">Сохранить</button>
+    </form>
+  </section>
+
+  <section class="card p-6">
+    <h2 class="mb-4 text-base font-semibold text-slate-900">Смена пароля</h2>
+    <form method="post" action="/profile/password" class="space-y-4">
+      {{ field('Текущий пароль', 'current_password', '', 'password', true, '', 'current-password') }}
+      {{ field('Новый пароль', 'new_password', '', 'password', true, '', 'new-password', false) }}
+      {{ field('Повторите новый пароль', 'confirm_password', '', 'password', true, '', 'new-password') }}
+      <p class="text-xs text-slate-500">Минимум 8 символов. После смены пароля вход на других устройствах придётся повторить.</p>
+      <button type="submit" class="btn btn-primary">Изменить пароль</button>
+    </form>
+  </section>
+
+  <section class="card p-6 lg:col-span-2">
+    <h2 class="mb-1 text-base font-semibold text-slate-900">Ваши права</h2>
+    <p class="mb-4 text-sm text-slate-500">Определяются ролью «{{ user.role.name }}».</p>
+    {% if '*' in user.role.permissions %}
+      <span class="badge bg-indigo-50 text-indigo-700">Полный доступ</span>
+    {% elif user.role.permissions %}
+      <ul class="flex flex-wrap gap-2">
+        {% for p in user.role.permissions %}
+          <li class="badge bg-slate-100 text-slate-700">{{ permission_labels.get(p, p) }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-sm text-slate-500">Права не назначены.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

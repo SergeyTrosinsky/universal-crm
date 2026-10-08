@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% from "partials/badges.html" import status_badge %}
+{% from "partials/task_badges.html" import priority_badge, due_label %}
+{% block title %}Главная · {{ app_name }}{% endblock %}
+
+{% block content %}
+{% macro money_list(items, empty='—') %}
+  {% if items %}{% for m in items %}<span class="block">{{ m.amount | money(m.currency) }}</span>{% endfor %}{% else %}<span class="text-slate-400">{{ empty }}</span>{% endif %}
+{% endmacro %}
+
+{% macro kpi(label, value, hint='', href='') %}
+  <div class="card p-5">
+    <p class="text-sm text-slate-500">{{ label }}</p>
+    <p class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">{% if href %}<a href="{{ href }}" class="hover:text-indigo-600">{{ value }}</a>{% else %}{{ value }}{% endif %}</p>
+    {% if hint %}<p class="mt-1 text-xs text-slate-500">{{ hint }}</p>{% endif %}
+  </div>
+{% endmacro %}
+
+{% set deals = d.deals %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Главная</h1>
+    <p class="mt-1 text-sm text-slate-500">Здравствуйте, {{ user.full_name }}. Период для статистики: {{ d.period_label | lower }}.
+      {% if d.personal %}<span class="font-medium text-indigo-700">Это ваша личная статистика: учитываются только ваши {{ ui.deal.pl | lower }}.</span>{% endif %}</p>
+  </div>
+  <nav class="flex flex-wrap gap-1" aria-label="Период">
+    {% for key, label in periods %}
+      <a href="{{ url_with(request, period=key) }}"
+         class="rounded-lg px-3 py-1.5 text-sm font-medium {{ 'bg-indigo-600 text-white' if d.period == key else 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50' }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+</div>
+
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+  {% if deals %}
+    <div class="card p-5">
+      <p class="text-sm text-slate-500">В работе</p>
+      <p class="mt-1 text-2xl font-semibold tracking-tight text-slate-900"><a href="/deals?kind=open" class="hover:text-indigo-600">{{ deals.open_count }}</a></p>
+      <p class="mt-1 text-xs text-slate-500">{{ money_list(deals.open_amounts, 'на сумму 0') }}</p>
+    </div>
+    <div class="card p-5">
+      <p class="text-sm text-slate-500">Выиграно за период</p>
+      <p class="mt-1 text-2xl font-semibold tracking-tight text-emerald-600"><a href="/deals?kind=won" class="hover:text-emerald-500">{{ deals.won_count }}</a></p>
+      <p class="mt-1 text-xs text-slate-500">{{ money_list(deals.won_amounts, 'на сумму 0') }}</p>
+    </div>
+    <div class="card p-5">
+      <p class="text-sm text-slate-500">Проиграно за период</p>
+      <p class="mt-1 text-2xl font-semibold tracking-tight text-slate-900"><a href="/deals?kind=lost" class="hover:text-indigo-600">{{ deals.lost_count }}</a></p>
+      <p class="mt-1 text-xs text-slate-500">{{ money_list(deals.lost_amounts, 'на сумму 0') }}</p>
+    </div>
+    {{ kpi('Конверсия', (deals.conversion | string ~ ' %') if deals.conversion is not none else '—', 'выиграно из закрытых за период') }}
+  {% endif %}
+  {% if d.clients %}
+    {{ kpi(ui.client.pl, d.clients.total, 'новых за период: ' ~ d.clients.new, '/clients') }}
+  {% endif %}
+  {% if deals %}{{ kpi(ui.deal.pl ~ ': новые', deals.created, 'создано за период') }}{% endif %}
+  {% if d.tasks %}
+    {{ kpi('Мои открытые задачи', d.tasks.open, 'на сегодня: ' ~ d.tasks.today, '/tasks') }}
+    <div class="card p-5">
+      <p class="text-sm text-slate-500">Просрочено</p>
+      <p class="mt-1 text-2xl font-semibold tracking-tight {{ 'text-rose-600' if d.tasks.overdue else 'text-slate-900' }}"><a href="/tasks?view=overdue" class="hover:opacity-80">{{ d.tasks.overdue }}</a></p>
+      {% if d.tasks.team_overdue is not none %}<p class="mt-1 text-xs text-slate-500">у всех сотрудников: {{ d.tasks.team_overdue }}</p>{% endif %}
+    </div>
+  {% endif %}
+</div>
+
+{% if deals %}
+<div class="mt-6 grid gap-6 lg:grid-cols-2">
+  <section class="card p-6">
+    <h2 class="mb-4 text-base font-semibold text-slate-900">{{ ui.deal.pl }} по статусам</h2>
+    {% set total_deals = namespace(n=0, max=1) %}
+    {% for s in deals.by_status %}{% set total_deals.n = total_deals.n + s.count %}{% if s.count > total_deals.max %}{% set total_deals.max = s.count %}{% endif %}{% endfor %}
+    {% if total_deals.n %}
+      <ul class="space-y-3">
+        {% for s in deals.by_status %}
+        <li>
+          <div class="flex items-baseline justify-between gap-3 text-sm">
+            <a href="/deals?status={{ s.id }}" class="flex items-center gap-2 font-medium text-slate-800 hover:text-indigo-600">
+              <span class="inline-block h-2.5 w-2.5 rounded-full" style="background-color: {{ s.color }}"></span>{{ s.name }}
+            </a>
+            <span class="text-slate-500">{{ s.count }}{% if s.amounts %} · {% for m in s.amounts %}{{ m.amount | money(m.currency) }}{{ ', ' if not loop.last }}{% endfor %}{% endif %}</span>
+          </div>
+          <div class="mt-1.5 h-2 rounded-full bg-slate-100">
+            <div class="h-2 rounded-full" style="width: {{ (s.count * 100 / total_deals.max) | round(1) }}%; background-color: {{ s.color }}"></div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-sm text-slate-500">Пока пусто.</p>
+    {% endif %}
+  </section>
+
+  <section class="card p-6">
+    <h2 class="mb-1 text-base font-semibold text-slate-900">Динамика за 6 месяцев</h2>
+    <p class="mb-4 text-xs text-slate-500"><span class="mr-3 inline-flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-sm bg-indigo-400"></span>создано</span><span class="inline-flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500"></span>выиграно</span></p>
+    {% set mx = namespace(v=1) %}
+    {% for m in deals.monthly %}{% if m.created > mx.v %}{% set mx.v = m.created %}{% endif %}{% if m.won > mx.v %}{% set mx.v = m.won %}{% endif %}{% endfor %}
+    <div class="flex h-44 items-end gap-3" role="img" aria-label="Столбчатая диаграмма сделок по месяцам">
+      {% for m in deals.monthly %}
+      <div class="flex h-full flex-1 flex-col justify-end">
+        <div class="flex flex-1 items-end justify-center gap-1">
+          <div class="w-full max-w-5" title="Создано: {{ m.created }}" style="height: {{ (m.created * 100 / mx.v) | round(1) }}%; min-height: {{ '2px' if m.created else '0' }}"><div class="h-full rounded-t bg-indigo-400"></div></div>
+          <div class="w-full max-w-5" title="Выиграно: {{ m.won }}" style="height: {{ (m.won * 100 / mx.v) | round(1) }}%; min-height: {{ '2px' if m.won else '0' }}"><div class="h-full rounded-t bg-emerald-500"></div></div>
+        </div>
+        <p class="mt-2 text-center text-xs text-slate-500">{{ m.label }}</p>
+        <p class="text-center text-xs font-medium text-slate-700">{{ m.created }} / {{ m.won }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+{% if deals.by_responsible %}
+<section class="card mt-6 overflow-hidden">
+  <h2 class="px-6 py-4 text-base font-semibold text-slate-900">Сотрудники</h2>
+  <div class="overflow-x-auto border-t border-slate-100">
+    <table class="min-w-full divide-y divide-slate-100">
+      <thead class="bg-slate-50"><tr><th class="th">Ответственный</th><th class="th text-right">В работе</th><th class="th text-right">Выиграно за период</th><th class="th text-right">Сумма выигранных</th></tr></thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for r in deals.by_responsible %}
+        <tr>
+          <td class="td font-medium text-slate-900">{% if r.user_id %}<a href="/deals?responsible={{ r.user_id }}" class="hover:text-indigo-600">{{ r.name }}</a>{% else %}{{ r.name }}{% endif %}</td>
+          <td class="td text-right">{{ r.open }}</td>
+          <td class="td text-right">{{ r.won }}</td>
+          <td class="td text-right font-medium text-slate-900">{{ money_list(r.won_amounts) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endif %}
+
+{% if d.breakdowns %}
+<div class="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+  {% for b in d.breakdowns %}
+  {% set top = b['items'][0]['count'] %}
+  <section class="card p-6">
+    <h2 class="text-base font-semibold text-slate-900">{{ b.field }}</h2>
+    <p class="mb-4 text-xs text-slate-500">{{ ui.deal.pl if b.entity == 'deal' else ui.client.pl }}</p>
+    <ul class="space-y-2.5">
+      {% for it in b['items'] %}
+      <li>
+        <div class="flex justify-between gap-3 text-sm"><span class="truncate text-slate-700">{{ it.value }}</span><span class="font-medium text-slate-900">{{ it.count }}</span></div>
+        <div class="mt-1 h-1.5 rounded-full bg-slate-100"><div class="h-1.5 rounded-full bg-indigo-400" style="width: {{ (it.count * 100 / top) | round(1) }}%"></div></div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="mt-6 grid gap-6 lg:grid-cols-3">
+  {% if recent.tasks or d.tasks %}
+  <section class="card overflow-hidden">
+    <div class="flex items-center justify-between px-6 py-4"><h2 class="text-base font-semibold text-slate-900">Ближайшие задачи</h2><a href="/tasks" class="text-sm text-indigo-600 hover:text-indigo-500">Все</a></div>
+    {% if recent.tasks %}
+    <ul class="divide-y divide-slate-100 border-t border-slate-100">
+      {% for t in recent.tasks %}
+      <li class="px-6 py-3">
+        <a href="/tasks/{{ t.id }}" class="text-sm font-medium text-slate-900 hover:text-indigo-600">{{ t.title }}</a>
+        <div class="mt-0.5 flex flex-wrap items-center gap-2 text-xs">{{ due_label(t) }} {{ priority_badge(t.priority.value) }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="border-t border-slate-100 px-6 py-8 text-center text-sm text-slate-500">Открытых задач нет.</p>{% endif %}
+  </section>
+  {% endif %}
+
+  {% if deals %}
+  <section class="card overflow-hidden">
+    <div class="flex items-center justify-between px-6 py-4"><h2 class="text-base font-semibold text-slate-900">{{ ui.deal.pl }}: новые</h2><a href="/deals" class="text-sm text-indigo-600 hover:text-indigo-500">Все</a></div>
+    {% if recent.deals %}
+    <ul class="divide-y divide-slate-100 border-t border-slate-100">
+      {% for x in recent.deals %}
+      <li class="flex items-center justify-between gap-3 px-6 py-3">
+        <div class="min-w-0"><a href="/deals/{{ x.id }}" class="block truncate text-sm font-medium text-slate-900 hover:text-indigo-600">{{ x.title }}</a><p class="truncate text-xs text-slate-500">{{ x.client.name }}</p></div>
+        <div class="shrink-0 text-right text-sm font-medium text-slate-900">{{ x.amount | money(x.currency) }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="border-t border-slate-100 px-6 py-8 text-center text-sm text-slate-500">Пока пусто.</p>{% endif %}
+  </section>
+  {% endif %}
+
+  {% if d.clients %}
+  <section class="card overflow-hidden">
+    <div class="flex items-center justify-between px-6 py-4"><h2 class="text-base font-semibold text-slate-900">{{ ui.client.pl }}: новые</h2><a href="/clients" class="text-sm text-indigo-600 hover:text-indigo-500">Все</a></div>
+    {% if recent.clients %}
+    <ul class="divide-y divide-slate-100 border-t border-slate-100">
+      {% for c in recent.clients %}
+      <li class="px-6 py-3"><a href="/clients/{{ c.id }}" class="text-sm font-medium text-slate-900 hover:text-indigo-600">{{ c.name }}</a><p class="text-xs text-slate-500">{{ c.phone or c.email or '—' }}</p></li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="border-t border-slate-100 px-6 py-8 text-center text-sm text-slate-500">Пока пусто.</p>{% endif %}
+  </section>
+  {% endif %}
+</div>
+
+{% if not deals and not d.clients and not d.tasks %}
+  <div class="card mt-6 p-8 text-center text-sm text-slate-500">Для вашей роли пока нет доступных разделов. Обратитесь к администратору.</div>
+{% endif %}
+{% endblock %}

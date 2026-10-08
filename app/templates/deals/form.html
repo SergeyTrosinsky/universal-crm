@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import field as input_field, select_field, textarea_field, error_box %}
+{% from "partials/custom_fields_form.html" import custom_inputs %}
+{% set currency_options = [] %}{% for code in currencies %}{% set _ = currency_options.append((code, code)) %}{% endfor %}
+{% set editing = deal is not none %}
+{% block title %}{{ 'Изменение' if editing else 'Добавить ' ~ ui.deal.acc }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl">
+  <a href="{{ '/deals/%d' % deal.id if editing else '/deals' }}" class="text-sm text-slate-500 hover:text-slate-700">&larr; {{ 'Назад к карточке' if editing else 'Назад к списку' }}</a>
+  <h1 class="mb-6 mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ deal.title if editing else 'Добавить ' ~ ui.deal.acc }}</h1>
+
+  <form method="post" action="{{ '/deals/%d/edit' % deal.id if editing else '/deals/new' }}" class="space-y-6">
+    {{ error_box(errors.get('__all__')) }}
+
+    <section class="card p-6">
+      <h2 class="mb-4 text-base font-semibold text-slate-900">Основное</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% if templates %}
+        <div class="sm:col-span-2 rounded-lg bg-indigo-50/60 p-4 ring-1 ring-inset ring-indigo-100">
+          {{ select_field('Шаблон', 'template_id', options_of(templates, 'id', 'name'), form.get('template_id', ''), false, 'Стандартная форма', errors.get('template_id'), 'Шаблон добавляет к форме свои поля. «Стандартная форма» — только общие поля.') }}
+        </div>
+        {% endif %}
+        <div class="sm:col-span-2">
+          {{ input_field('Название', 'title', form.get('title', ''), 'text', true, 'Например, Замена ГРМ', error=errors.get('title')) }}
+        </div>
+
+        <div class="sm:col-span-2" data-client-picker>
+          <label for="client_picker" class="label">{{ ui.client.sg }} <span class="text-rose-500">*</span></label>
+          <div class="relative">
+            <input id="client_picker" type="text" data-picker-input autocomplete="off"
+                   value="{{ picked_client.name if picked_client else '' }}" placeholder="Начните вводить имя, телефон или email…"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false"
+                   class="input {{ 'ring-rose-400' if errors.get('client_id') else '' }}">
+            <input type="hidden" name="client_id" data-picker-value value="{{ picked_client.id if picked_client else '' }}">
+            <ul data-picker-list role="listbox"
+                class="absolute z-20 mt-1 hidden max-h-60 w-full overflow-auto rounded-lg bg-white text-sm shadow-lg ring-1 ring-slate-200"></ul>
+          </div>
+          {% if errors.get('client_id') %}<p class="mt-1 text-xs text-rose-600">{{ errors.get('client_id') }}</p>{% endif %}
+        </div>
+
+        <div class="grid grid-cols-[1fr_7rem] gap-3">
+          {{ input_field('Сумма', 'amount', form.get('amount', ''), 'text', false, '0,00', 'off', error=errors.get('amount')) }}
+          {{ select_field('Валюта', 'currency', currency_options, form.get('currency', 'RUB'), false, error=errors.get('currency')) }}
+        </div>
+        {{ input_field('Дата', 'deal_date', form.get('deal_date', ''), 'date', true, error=errors.get('deal_date')) }}
+        {{ select_field('Статус', 'status_id', options_of(statuses, 'id', 'name'), form.get('status_id', ''), true, error=errors.get('status_id')) }}
+        {% if can(user, 'deals:assign') %}
+          {{ select_field('Ответственный', 'responsible_id', options_of(users, 'id', 'label'), form.get('responsible_id', ''), false, 'Не назначен', errors.get('responsible_id')) }}
+        {% else %}
+          <div>
+            <span class="label">Ответственный</span>
+            <p class="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700 ring-1 ring-inset ring-slate-200">{{ deal.responsible.full_name if editing and deal.responsible else user.full_name }}{{ '' if editing and deal.responsible and deal.responsible_id != user.id else ' (вы)' }}</p>
+            {% if errors.get('responsible_id') %}<p class="mt-1 text-xs text-rose-600">{{ errors.get('responsible_id') }}</p>{% endif %}
+          </div>
+        {% endif %}
+        <div class="sm:col-span-2">
+          {{ textarea_field('Описание', 'description', form.get('description', ''), 3, false, '', errors.get('description')) }}
+        </div>
+      </div>
+    </section>
+
+    {% if fields %}
+    <section class="card p-6" data-custom-section>
+      <h2 class="mb-4 text-base font-semibold text-slate-900">Дополнительные поля</h2>
+      <div class="grid gap-4 sm:grid-cols-2">{{ custom_inputs(fields, cf_values, errors) }}</div>
+    </section>
+    {% elif can(user, 'settings:manage') %}
+    <p class="text-sm text-slate-500">Нужны свои характеристики (например, «Госномер» или «Мастер»)? <a href="/settings/fields?entity=deal" class="font-medium text-indigo-600 hover:text-indigo-500">Настроить поля: {{ ui.deal.pl | lower }}</a></p>
+    {% endif %}
+
+    <div class="flex items-center gap-3">
+      <button type="submit" class="btn btn-primary">{{ 'Сохранить' if editing else 'Добавить' }}</button>
+      <a href="{{ '/deals/%d' % deal.id if editing else '/deals' }}" class="btn btn-secondary">Отмена</a>
+    </div>
+  </form>
+</div>
+<script src="/static/js/client_picker.js" defer></script>
+<script src="/static/js/deal_templates.js" defer></script>
+{% endblock %}

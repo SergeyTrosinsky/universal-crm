@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Роли · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Роли</h1>
+    <p class="mt-1 text-sm text-slate-500">Набор прав доступа, который назначается пользователям.</p>
+  </div>
+  <a href="/settings/roles/new" class="btn btn-primary">Добавить роль</a>
+</div>
+
+<div class="grid gap-4 md:grid-cols-2">
+  {% for r in roles %}
+  {% set n = counts.get(r.id, 0) %}
+  <article class="card flex flex-col p-5">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <h2 class="text-base font-semibold text-slate-900">{{ r.name }}</h2>
+        <p class="text-xs text-slate-400">{{ r.code }}</p>
+      </div>
+      <div class="flex gap-1.5">
+        {% if r.is_system %}<span class="badge bg-slate-100 text-slate-600">Системная</span>{% endif %}
+        <span class="badge bg-indigo-50 text-indigo-700">{{ n }} польз.</span>
+      </div>
+    </div>
+    {% if r.description %}<p class="mt-2 text-sm text-slate-600">{{ r.description }}</p>{% endif %}
+
+    <div class="mt-3 flex flex-wrap gap-1.5">
+      {% if '*' in r.permissions %}
+        <span class="badge bg-indigo-50 text-indigo-700">Полный доступ</span>
+      {% else %}
+        {% for p in r.permissions %}<span class="badge bg-slate-100 text-slate-700">{{ permission_labels.get(p, p) }}</span>{% else %}
+        <span class="text-sm text-slate-400">Нет прав</span>{% endfor %}
+      {% endif %}
+    </div>
+
+    <div class="mt-4 flex items-center gap-3 border-t border-slate-100 pt-4">
+      <a href="/settings/roles/{{ r.id }}/edit" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Изменить</a>
+      {% if not r.is_system and n == 0 %}
+        <form method="post" action="/settings/roles/{{ r.id }}/delete" data-confirm="Удалить роль «{{ r.name }}»?">
+          <button type="submit" class="text-sm font-medium text-rose-600 hover:text-rose-500">Удалить</button>
+        </form>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% macro priority_badge(priority) %}
+  {% set styles = {'low': 'bg-slate-100 text-slate-600', 'normal': 'bg-sky-50 text-sky-700', 'high': 'bg-amber-50 text-amber-700', 'urgent': 'bg-rose-50 text-rose-700'} %}
+  <span class="badge {{ styles.get(priority, 'bg-slate-100 text-slate-600') }}">{{ task_priority_labels.get(priority, priority) }}</span>
+{% endmacro %}
+
+{% macro task_status_badge(task) %}
+  {% set styles = {'todo': 'bg-slate-100 text-slate-700', 'in_progress': 'bg-indigo-50 text-indigo-700', 'done': 'bg-emerald-50 text-emerald-700', 'cancelled': 'bg-slate-100 text-slate-400'} %}
+  <span class="badge {{ styles.get(task.status.value, 'bg-slate-100 text-slate-700') }}">{{ task_status_labels.get(task.status.value, task.status.value) }}</span>
+{% endmacro %}
+
+{# Срок: просроченный выделяется красным #}
+{% macro due_label(task) %}
+  {% if task.due_at %}
+    <span class="{{ 'font-medium text-rose-600' if task.is_overdue else 'text-slate-600' }}">{{ task.due_at | dt('%d.%m.%Y %H:%M') }}{% if task.is_overdue %} · просрочено{% endif %}</span>
+  {% else %}<span class="text-slate-400">Без срока</span>{% endif %}
+{% endmacro %}

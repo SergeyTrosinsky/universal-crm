@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import field as input_field, textarea_field, checkbox, error_box %}
+{% set editing = item is not none %}
+{% block title %}{{ 'Изменение шаблона' if editing else 'Новый шаблон' }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl">
+  <a href="/settings/templates" class="text-sm text-slate-500 hover:text-slate-700">&larr; К шаблонам</a>
+  <h1 class="mb-6 mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ item.name if editing else 'Новый шаблон' }}</h1>
+
+  <form method="post" action="{{ '/settings/templates/%d/edit' % item.id if editing else '/settings/templates/new' }}" class="card space-y-5 p-6">
+    {{ error_box(errors.get('__all__')) }}
+    {{ input_field('Название', 'name', form.get('name', ''), 'text', true, 'Например, Автосервис', error=errors.get('name')) }}
+    {{ textarea_field('Описание', 'description', form.get('description', ''), 3, false, 'Для кого или для чего этот шаблон', errors.get('description')) }}
+    {{ checkbox('Активен', 'is_active', form.get('is_active'), 'Скрытый шаблон нельзя выбрать для новых записей; существующие записи сохраняют его поля.') }}
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit" class="btn btn-primary">{{ 'Сохранить' if editing else 'Создать и добавить поля' }}</button>
+      <a href="/settings/templates" class="btn btn-secondary">Отмена</a>
+    </div>
+  </form>
+
+  {% if editing %}
+  <div class="card mt-6 p-6">
+    <h2 class="text-base font-semibold text-slate-900">Удаление</h2>
+    {% if used.fields or used.deals %}
+      <p class="mt-1 text-sm text-slate-500">Шаблон используется (полей: {{ used.fields }}, {{ ui.deal.pl | lower }}: {{ used.deals }}), поэтому удалить его нельзя. Скройте шаблон, чтобы убрать его из выбора.</p>
+    {% else %}
+      <p class="mt-1 text-sm text-slate-500">Шаблон пустой: у него нет полей и записей.</p>
+      <form method="post" action="/settings/templates/{{ item.id }}/delete" class="mt-4" data-confirm="Удалить шаблон «{{ item.name }}»?">
+        <button type="submit" class="btn btn-danger">Удалить шаблон</button>
+      </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

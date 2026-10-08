@@ -1,0 +1,4 @@
+/* Дополнения к Tailwind (CDN): то, что неудобно выражать утилитами. */
+html { scroll-behavior: smooth; }
+[data-flash] { transition: opacity .2s ease; }
+select.input { padding-right: 2rem; }

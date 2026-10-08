@@ -1,0 +1,36 @@
+{# Фильтры по кастомным полям. fields — filterable-поля, filters — {имя параметра: значение}. #}
+{% macro custom_filter_inputs(fields, filters) %}
+  {% for f in fields %}
+    {% set t = f.field_type.value %}
+    {% set name = 'cf_' ~ f.code %}
+    <div>
+      <span class="label">{{ f.label }}</span>
+      {% if t in ('integer', 'decimal') %}
+        <div class="flex gap-2">
+          <input type="text" inputmode="decimal" name="{{ name }}__from" value="{{ filters.get(name ~ '__from', '') }}" placeholder="от" class="input" aria-label="{{ f.label }}: от">
+          <input type="text" inputmode="decimal" name="{{ name }}__to" value="{{ filters.get(name ~ '__to', '') }}" placeholder="до" class="input" aria-label="{{ f.label }}: до">
+        </div>
+      {% elif t in ('date', 'datetime') %}
+        <div class="flex gap-2">
+          <input type="date" name="{{ name }}__from" value="{{ filters.get(name ~ '__from', '') }}" class="input" aria-label="{{ f.label }}: с">
+          <input type="date" name="{{ name }}__to" value="{{ filters.get(name ~ '__to', '') }}" class="input" aria-label="{{ f.label }}: по">
+        </div>
+      {% elif t in ('select', 'multiselect') %}
+        <select name="{{ name }}" class="input" aria-label="{{ f.label }}">
+          <option value="">Любое</option>
+          {% for option in f.options %}
+            <option value="{{ option }}" {{ 'selected' if filters.get(name) == option else '' }}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      {% elif t == 'boolean' %}
+        <select name="{{ name }}" class="input" aria-label="{{ f.label }}">
+          <option value="">Любое</option>
+          <option value="1" {{ 'selected' if filters.get(name) == '1' else '' }}>Да</option>
+          <option value="0" {{ 'selected' if filters.get(name) == '0' else '' }}>Нет</option>
+        </select>
+      {% else %}
+        <input type="text" name="{{ name }}" value="{{ filters.get(name, '') }}" placeholder="Содержит…" class="input" aria-label="{{ f.label }}">
+      {% endif %}
+    </div>
+  {% endfor %}
+{% endmacro %}

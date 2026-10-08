@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% from "partials/badges.html" import status_badge %}
+{% from "partials/related_tasks.html" import related_tasks with context %}
+{% from "partials/history.html" import history_block with context %}
+{% block title %}{{ client.name }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+{% set vals = cf_map(client) %}
+<a href="/clients" class="text-sm text-slate-500 hover:text-slate-700">&larr; {{ ui.client.pl }}</a>
+
+<div class="mb-6 mt-2 flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{{ client.name }}</h1>
+    <p class="mt-1 text-sm text-slate-500">
+      {{ client_type_labels[client.type.value] }}{% if client.company_name %} · {{ client.company_name }}{% endif %}
+      · создан {{ client.created_at | dt('%d.%m.%Y') }}
+    </p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    {% if can(user, 'deals:write') %}<a href="/deals/new?client_id={{ client.id }}" class="btn btn-primary">Добавить {{ ui.deal.acc }}</a>{% endif %}
+    {% if can(user, 'clients:write') %}<a href="/clients/{{ client.id }}/edit" class="btn btn-secondary">Изменить</a>{% endif %}
+    {% if can(user, 'clients:delete') %}
+      <form method="post" action="/clients/{{ client.id }}/delete"
+            data-confirm="Удалить «{{ client.name }}»{% if deals %} вместе со связанными записями ({{ deals | length }}){% endif %}? Это действие необратимо.">
+        <button type="submit" class="btn btn-danger">Удалить</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid gap-6 lg:grid-cols-3">
+  <section class="card p-6 lg:col-span-1">
+    <h2 class="mb-4 text-base font-semibold text-slate-900">Контакты</h2>
+    <dl class="space-y-3 text-sm">
+      <div><dt class="text-slate-500">Телефон</dt><dd class="mt-0.5 font-medium text-slate-900">{% if client.phone %}<a href="tel:{{ client.phone }}" class="hover:text-indigo-600">{{ client.phone }}</a>{% else %}—{% endif %}</dd></div>
+      <div><dt class="text-slate-500">Email</dt><dd class="mt-0.5 font-medium text-slate-900">{% if client.email %}<a href="mailto:{{ client.email }}" class="hover:text-indigo-600">{{ client.email }}</a>{% else %}—{% endif %}</dd></div>
+      <div><dt class="text-slate-500">Адрес</dt><dd class="mt-0.5 font-medium text-slate-900">{{ client.address or '—' }}</dd></div>
+      <div><dt class="text-slate-500">Ответственный</dt><dd class="mt-0.5 font-medium text-slate-900">{{ client.owner.full_name if client.owner else '—' }}</dd></div>
+    </dl>
+    {% if client.notes %}
+      <h3 class="mb-1 mt-5 text-sm font-semibold text-slate-900">Заметки</h3>
+      <p class="whitespace-pre-line text-sm text-slate-600">{{ client.notes }}</p>
+    {% endif %}
+  </section>
+
+  <div class="space-y-6 lg:col-span-2">
+    {% if fields %}
+    <section class="card p-6">
+      <h2 class="mb-4 text-base font-semibold text-slate-900">Дополнительные поля</h2>
+      <dl class="grid gap-4 text-sm sm:grid-cols-2">
+        {% for f in fields %}
+          <div><dt class="text-slate-500">{{ f.label }}</dt><dd class="mt-0.5 whitespace-pre-line font-medium text-slate-900">{{ cf_display(f, vals.get(f.id)) }}</dd></div>
+        {% endfor %}
+      </dl>
+    </section>
+    {% endif %}
+
+    <section class="card overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4">
+        <h2 class="text-base font-semibold text-slate-900">{{ ui.deal.pl }} <span class="font-normal text-slate-400">· {{ deals | length }}</span></h2>
+        {% if totals %}<p class="text-sm text-slate-500">Сумма: {% for currency, amount in totals %}<span class="font-medium text-slate-900">{{ amount | money(currency) }}</span>{{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+      </div>
+      {% if deals %}
+      <div class="overflow-x-auto border-t border-slate-100">
+        <table class="min-w-full divide-y divide-slate-100">
+          <tbody class="divide-y divide-slate-100">
+            {% for d in deals %}
+            <tr class="hover:bg-slate-50/60">
+              <td class="td"><a href="/deals/{{ d.id }}" class="font-medium text-slate-900 hover:text-indigo-600">{{ d.title }}</a>
+                <div class="text-xs text-slate-500">{{ d.deal_date | date }}{% if d.responsible %} · {{ d.responsible.full_name }}{% endif %}</div></td>
+              <td class="td">{{ status_badge(d.status) }}</td>
+              <td class="td text-right font-medium text-slate-900">{{ d.amount | money(d.currency) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <p class="border-t border-slate-100 px-6 py-8 text-center text-sm text-slate-500">Связанных записей пока нет.</p>
+      {% endif %}
+    </section>
+
+    {{ related_tasks(tasks, '/tasks/new?client_id=%d' % client.id, '/tasks?client=%d&view=all&assignee=all' % client.id) }}
+
+    {{ history_block(feed, '/clients/%d' % client.id, can_note) }}
+  </div>
+</div>
+{% endblock %}

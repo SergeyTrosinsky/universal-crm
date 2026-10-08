@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import field, error_box %}
+{% set editing = target is not none %}
+{% block title %}{{ 'Изменение пользователя' if editing else 'Новый пользователь' }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl">
+  <a href="/settings/users" class="text-sm text-slate-500 hover:text-slate-700">&larr; К списку</a>
+  <h1 class="mb-6 mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+    {{ target.full_name if editing else 'Новый пользователь' }}
+  </h1>
+
+  <form method="post" action="{{ '/settings/users/%d/edit' % target.id if editing else '/settings/users/new' }}" class="card space-y-4 p-6">
+    {{ error_box(error) }}
+    {{ field('Email', 'email', form.get('email', ''), 'email', not editing, 'name@company.com', 'off', editing) }}
+    {{ field('Имя', 'full_name', form.get('full_name', ''), 'text', true) }}
+
+    <div>
+      <label for="role_id" class="label">Роль <span class="text-rose-500">*</span></label>
+      <select id="role_id" name="role_id" class="input" required {% if editing and target.id == user.id %}disabled{% endif %}>
+        {% for r in roles %}
+          <option value="{{ r.id }}" {{ 'selected' if r.id == form.get('role_id') else '' }}>{{ r.name }}</option>
+        {% endfor %}
+      </select>
+      {% if editing and target.id == user.id %}
+        <input type="hidden" name="role_id" value="{{ target.role_id }}">
+        <p class="mt-1 text-xs text-slate-500">Свою роль изменить нельзя.</p>
+      {% endif %}
+    </div>
+
+    {{ field('Новый пароль' if editing else 'Пароль', 'password', '', 'password', not editing, '', 'new-password',
+             help='Оставьте пустым, чтобы не менять. Минимум 8 символов.' if editing else 'Минимум 8 символов.') }}
+
+    <label class="flex items-center gap-2 text-sm text-slate-700">
+      <input type="checkbox" name="is_active" value="1" class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+             {{ 'checked' if form.get('is_active') else '' }} {% if editing and target.id == user.id %}onclick="return false"{% endif %}>
+      Активен (может входить в систему)
+    </label>
+
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit" class="btn btn-primary">{{ 'Сохранить' if editing else 'Создать' }}</button>
+      <a href="/settings/users" class="btn btn-secondary">Отмена</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

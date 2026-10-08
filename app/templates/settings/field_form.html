@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import field as input_field, select_field, textarea_field, checkbox, error_box %}
+{% set editing = field is not none %}
+{% set elabels = {'client': ui.client.pl, 'deal': ui.deal.pl} %}
+{% set ftype = form.get('field_type', 'text') %}
+{% block title %}{{ 'Изменение поля' if editing else 'Новое поле' }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl">
+  <a href="/settings/fields?entity={{ entity }}" class="text-sm text-slate-500 hover:text-slate-700">&larr; К списку полей</a>
+  <h1 class="mb-1 mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ field.label if editing else 'Новое поле' }}</h1>
+  <p class="mb-6 text-sm text-slate-500">Раздел: {{ elabels[entity] }}</p>
+
+  <form method="post" action="{{ '/settings/fields/%d/edit' % field.id if editing else '/settings/fields/new' }}" class="card space-y-5 p-6">
+    {{ error_box(errors.get('__all__')) }}
+    {% if not editing %}<input type="hidden" name="entity_type" value="{{ entity }}">{% endif %}
+
+    {{ input_field('Название', 'label', form.get('label', ''), 'text', true, 'Например, Марка авто', error=errors.get('label')) }}
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      {{ select_field(
+          'Тип поля', 'field_type', field_type_labels.items(), ftype, true,
+          disabled=editing, help='После создания тип не меняется.' if editing else '',
+          error=errors.get('field_type')) }}
+      {{ input_field('Код', 'code', form.get('code', ''), 'text', false, 'формируется автоматически', 'off', editing,
+                     help='Для API и фильтров: ?cf_<код>=…' if editing else 'Латиница и «_». Пусто — сформируется из названия.',
+                     error=errors.get('code')) }}
+    </div>
+
+    {% if entity == 'deal' and templates %}
+      {{ select_field('Шаблон', 'template_id', options_of(templates, 'id', 'name'), form.get('template_id', ''), false, 'Общее поле (для всех)', errors.get('template_id'), 'Поле шаблона показывается только у записей с этим шаблоном.') }}
+    {% endif %}
+
+    <div data-options-block class="{{ '' if ftype in ('select', 'multiselect') else 'hidden' }}">
+      {{ textarea_field('Варианты', 'options', form.get('options', ''), 5, false, 'Каждый вариант с новой строки',
+                        errors.get('options'), 'По одному варианту в строке. Порядок сохраняется.') }}
+    </div>
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      {{ input_field('Подсказка в поле', 'placeholder', form.get('placeholder', ''), error=errors.get('placeholder')) }}
+      {{ input_field('Пояснение под полем', 'help_text', form.get('help_text', ''), error=errors.get('help_text')) }}
+    </div>
+
+    <fieldset class="space-y-3">
+      <legend class="label">Параметры</legend>
+      {{ checkbox('Обязательное', 'is_required', form.get('is_required'), 'Нельзя сохранить запись, пока поле пустое (для флажка не действует).') }}
+      {{ checkbox('Использовать в фильтрах', 'is_filterable', form.get('is_filterable'), 'Поле появится в панели фильтров списка.') }}
+      {% if entity != 'deal' %}
+      {{ checkbox('Показывать колонкой в списке', 'show_in_list', form.get('show_in_list')) }}
+      {% endif %}
+      {{ checkbox('Активно', 'is_active', form.get('is_active'), 'Скрытое поле не показывается в формах и списках, данные не теряются.') }}
+    </fieldset>
+
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit" class="btn btn-primary">{{ 'Сохранить' if editing else 'Создать поле' }}</button>
+      <a href="/settings/fields?entity={{ entity }}" class="btn btn-secondary">Отмена</a>
+    </div>
+  </form>
+
+  {% if editing %}
+  <div class="card mt-6 p-6">
+    <h2 class="text-base font-semibold text-slate-900">Удаление</h2>
+    <p class="mt-1 text-sm text-slate-500">
+      {% if values_count %}У {{ values_count }} записей это поле заполнено — все значения будут удалены безвозвратно.{% else %}Значений у этого поля пока нет.{% endif %}
+      Если данные нужны, лучше просто скрыть поле.
+    </p>
+    <form method="post" action="/settings/fields/{{ field.id }}/delete" class="mt-4"
+          data-confirm="Удалить поле «{{ field.label }}»{% if values_count %} и {{ values_count }} значений{% endif %}? Это действие необратимо.">
+      <button type="submit" class="btn btn-danger">Удалить поле</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+<script src="/static/js/custom_fields.js" defer></script>
+{% endblock %}

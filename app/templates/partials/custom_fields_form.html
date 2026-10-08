@@ -1,0 +1,53 @@
+{# Динамические поля формы по активным CustomField.
+   fields — список полей, values — {код: значение}, errors — {cf_<код>: текст}. #}
+{% macro custom_inputs(fields, values, errors) %}
+  {% set input_types = {'text': 'text', 'phone': 'tel', 'email': 'email', 'url': 'url',
+                        'integer': 'number', 'decimal': 'text', 'date': 'date', 'datetime': 'datetime-local'} %}
+  {% for f in fields %}
+    {% set name = 'cf_' ~ f.code %}
+    {% set val = values.get(f.code) %}
+    {% set err = errors.get(name) %}
+    {% set t = f.field_type.value %}
+    <div class="{{ 'sm:col-span-2' if t in ('textarea', 'multiselect') else '' }}" data-field-template="{{ f.template_id or '' }}">
+      {% if t == 'boolean' %}
+        <label class="flex items-center gap-2 pt-7 text-sm text-slate-700">
+          <input type="checkbox" name="{{ name }}" value="1" {{ 'checked' if val else '' }}
+                 class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+          {{ f.label }}
+        </label>
+      {% elif t == 'multiselect' %}
+        <div class="label">{{ f.label }}{% if f.is_required %}<span class="text-rose-500"> *</span>{% endif %}</div>
+        <div class="flex flex-wrap gap-x-5 gap-y-2 rounded-lg bg-white p-3 ring-1 ring-inset {{ 'ring-rose-400' if err else 'ring-slate-300' }}">
+          {% for option in f.options %}
+            <label class="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" name="{{ name }}" value="{{ option }}" {{ 'checked' if val and option in val else '' }}
+                     class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+              {{ option }}
+            </label>
+          {% endfor %}
+        </div>
+      {% else %}
+        <label for="{{ name }}" class="label">{{ f.label }}{% if f.is_required %}<span class="text-rose-500"> *</span>{% endif %}</label>
+        {% if t == 'textarea' %}
+          <textarea id="{{ name }}" name="{{ name }}" rows="3" placeholder="{{ f.placeholder or '' }}"
+                    class="input {{ 'ring-rose-400' if err else '' }}">{{ val or '' }}</textarea>
+        {% elif t == 'select' %}
+          <select id="{{ name }}" name="{{ name }}" class="input {{ 'ring-rose-400' if err else '' }}">
+            <option value="">—</option>
+            {% for option in f.options %}
+              <option value="{{ option }}" {{ 'selected' if val == option else '' }}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        {% else %}
+          <input id="{{ name }}" name="{{ name }}" type="{{ input_types.get(t, 'text') }}"
+                 value="{{ val if val is not none else '' }}" placeholder="{{ f.placeholder or '' }}"
+                 {% if t == 'decimal' %}inputmode="decimal"{% endif %}
+                 {% if t == 'integer' %}step="1"{% endif %}
+                 autocomplete="off" class="input {{ 'ring-rose-400' if err else '' }}">
+        {% endif %}
+      {% endif %}
+      {% if err %}<p class="mt-1 text-xs text-rose-600">{{ err }}</p>{% endif %}
+      {% if f.help_text %}<p class="mt-1 text-xs text-slate-500">{{ f.help_text }}</p>{% endif %}
+    </div>
+  {% endfor %}
+{% endmacro %}

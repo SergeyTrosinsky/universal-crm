@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "partials/badges.html" import status_badge, kind_badge %}
+{% block title %}Статусы · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Статусы: {{ ui.deal.pl | lower }}</h1>
+    <p class="mt-1 max-w-2xl text-sm text-slate-500">
+      Этапы вашей воронки для раздела «{{ ui.deal.pl }}». Тип статуса определяет, как запись попадает в статистику:
+      «В работе» — открытая, «Успешно закрыта» — выигранная, «Проиграна» — проигранная.
+    </p>
+  </div>
+  <a href="/settings/statuses/new" class="btn btn-primary">Новый статус</a>
+</div>
+
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200">
+      <thead class="bg-slate-50">
+        <tr>
+          <th scope="col" class="th w-24">Порядок</th>
+          <th scope="col" class="th">Статус</th>
+          <th scope="col" class="th">Тип</th>
+          <th scope="col" class="th">{{ ui.deal.pl }}</th>
+          <th scope="col" class="th">Состояние</th>
+          <th scope="col" class="th"><span class="sr-only">Действия</span></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for s in statuses %}
+        <tr class="{{ '' if s.is_active else 'bg-slate-50/70' }}">
+          <td class="td">
+            <div class="flex gap-1">
+              {% for direction, arrow, disabled in (('up', '↑', loop.first), ('down', '↓', loop.last)) %}
+                <form method="post" action="/settings/statuses/{{ s.id }}/move">
+                  <input type="hidden" name="direction" value="{{ direction }}">
+                  <button type="submit" {{ 'disabled' if disabled else '' }} aria-label="{{ 'Выше' if direction == 'up' else 'Ниже' }}"
+                          class="h-8 w-8 rounded-lg text-slate-500 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 disabled:opacity-30">{{ arrow }}</button>
+                </form>
+              {% endfor %}
+            </div>
+          </td>
+          <td class="td">
+            <div class="flex items-center gap-2">
+              {{ status_badge(s) }}
+              {% if s.is_default %}<span class="badge bg-indigo-50 text-indigo-700" title="Назначается новым записям">Основной</span>{% endif %}
+            </div>
+            <div class="mt-0.5 font-mono text-xs text-slate-400">{{ s.code }}</div>
+          </td>
+          <td class="td">{{ kind_badge(s.kind.value) }}</td>
+          <td class="td">{{ counts.get(s.id, 0) }}</td>
+          <td class="td">
+            {% if s.is_active %}<span class="badge bg-emerald-50 text-emerald-700">Активен</span>
+            {% else %}<span class="badge bg-slate-200 text-slate-600">Отключён</span>{% endif %}
+          </td>
+          <td class="td">
+            <div class="flex items-center justify-end gap-3 whitespace-nowrap">
+              {% if s.is_active and not s.is_default %}
+                <form method="post" action="/settings/statuses/{{ s.id }}/default">
+                  <button type="submit" class="font-medium text-slate-600 hover:text-slate-900">Сделать основным</button>
+                </form>
+              {% endif %}
+              <a href="/settings/statuses/{{ s.id }}/edit" class="font-medium text-indigo-600 hover:text-indigo-500">Изменить</a>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="px-6 py-10 text-center text-sm text-slate-500">Статусов пока нет.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

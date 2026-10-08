@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import field, error_box %}
+{% set editing = role is not none %}
+{% set is_full_access = editing and '*' in role.permissions %}
+{% block title %}{{ 'Изменение роли' if editing else 'Новая роль' }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl">
+  <a href="/settings/roles" class="text-sm text-slate-500 hover:text-slate-700">&larr; К списку</a>
+  <h1 class="mb-6 mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ role.name if editing else 'Новая роль' }}</h1>
+
+  <form method="post" action="{{ '/settings/roles/%d/edit' % role.id if editing else '/settings/roles/new' }}" class="card space-y-5 p-6">
+    {{ error_box(error) }}
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      {{ field('Название', 'name', form.get('name', ''), 'text', true, 'Например, Мастер') }}
+      {{ field('Код', 'code', form.get('code', ''), 'text', not editing, 'master', 'off', editing,
+               help='' if editing else 'Латиница, цифры и «_». Потом не меняется.') }}
+    </div>
+
+    <div>
+      <label for="description" class="label">Описание</label>
+      <textarea id="description" name="description" rows="2" class="input">{{ form.get('description', '') }}</textarea>
+    </div>
+
+    <fieldset>
+      <legend class="label">Права доступа</legend>
+      {% if is_full_access %}
+        <p class="rounded-lg bg-indigo-50 px-4 py-3 text-sm text-indigo-800">У роли полный доступ — права администратора не редактируются.</p>
+      {% else %}
+        <div class="space-y-4">
+          {% for group, items in permission_groups %}
+          <div class="rounded-lg border border-slate-200 p-4">
+            <div class="mb-2 text-sm font-semibold text-slate-900">{{ group }}</div>
+            <div class="grid gap-2 sm:grid-cols-2">
+              {% for code, label in items %}
+              <label class="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" name="permissions" value="{{ code }}"
+                       class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                       {{ 'checked' if code in form.get('permissions', []) else '' }}>
+                {{ label }}
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </fieldset>
+
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit" class="btn btn-primary">{{ 'Сохранить' if editing else 'Создать' }}</button>
+      <a href="/settings/roles" class="btn btn-secondary">Отмена</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

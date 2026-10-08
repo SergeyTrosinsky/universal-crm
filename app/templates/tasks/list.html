@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% from "partials/pagination.html" import pagination, sort_th %}
+{% from "partials/task_badges.html" import priority_badge, task_status_badge, due_label %}
+{% block title %}Задачи · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Задачи</h1>
+  {% if can(user, 'tasks:write') %}<a href="/tasks/new" class="btn btn-primary">Добавить задачу</a>{% endif %}
+</div>
+
+<nav class="mb-4 flex flex-wrap gap-1" aria-label="Фильтр по состоянию">
+  {% for key, label in views %}
+    <a href="{{ url_with(request, view=key, status=None, page=None) }}"
+       class="rounded-lg px-3 py-1.5 text-sm font-medium {{ 'bg-indigo-600 text-white' if view == key and not p.status else 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50' }}">
+      {{ label }} <span class="{{ 'text-indigo-200' if view == key and not p.status else 'text-slate-400' }}">{{ counts.get(key, 0) }}</span>
+    </a>
+  {% endfor %}
+</nav>
+
+{% if client_filter %}
+<p class="mb-3 mr-2 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700">
+  {{ ui.client.sg }}: <a href="/clients/{{ client_filter.id }}" class="font-medium underline">{{ client_filter.name }}</a>
+  <a href="{{ url_with(request, client=None, page=None) }}" aria-label="Убрать фильтр по клиенту" class="text-indigo-400 hover:text-indigo-700">&times;</a>
+</p>
+{% endif %}
+{% if deal_filter %}
+<p class="mb-3 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700">
+  {{ ui.deal.sg }}: <a href="/deals/{{ deal_filter.id }}" class="font-medium underline">{{ deal_filter.title }}</a>
+  <a href="{{ url_with(request, deal=None, page=None) }}" aria-label="Убрать фильтр по сделке" class="text-indigo-400 hover:text-indigo-700">&times;</a>
+</p>
+{% endif %}
+
+<form method="get" action="/tasks" data-filter-form class="card mb-4 p-4">
+  <input type="hidden" name="view" value="{{ view }}">
+  {% if request.query_params.get('client') %}<input type="hidden" name="client" value="{{ request.query_params.get('client') }}">{% endif %}
+  {% if request.query_params.get('deal') %}<input type="hidden" name="deal" value="{{ request.query_params.get('deal') }}">{% endif %}
+  {% if request.query_params.get('sort') %}<input type="hidden" name="sort" value="{{ request.query_params.get('sort') }}">{% endif %}
+  <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_12rem_12rem_14rem_auto]">
+    <div>
+      <label for="q" class="sr-only">Поиск</label>
+      <input id="q" name="q" type="search" value="{{ p.q }}" placeholder="Поиск: название, описание, клиент, сделка…" class="input" autocomplete="off">
+    </div>
+    <div>
+      <label for="status" class="sr-only">Статус</label>
+      <select id="status" name="status" class="input">
+        <option value="">Любой статус</option>
+        {% for value, label in task_statuses %}<option value="{{ value }}" {{ 'selected' if p.status == value else '' }}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="priority" class="sr-only">Приоритет</label>
+      <select id="priority" name="priority" class="input">
+        <option value="">Любой приоритет</option>
+        {% for value, label in task_priorities %}<option value="{{ value }}" {{ 'selected' if p.priority == value else '' }}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="assignee" class="sr-only">Исполнитель</label>
+      <select id="assignee" name="assignee" class="input">
+        <option value="me" {{ 'selected' if assignee == 'me' else '' }}>Назначены мне</option>
+        <option value="all" {{ 'selected' if assignee == 'all' else '' }}>{{ 'Все сотрудники' if can(user, 'tasks:read_all') else 'Мои и созданные мной' }}</option>
+        {% if can(user, 'tasks:read_all') %}
+          {% for u in users %}<option value="{{ u.id }}" {{ 'selected' if assignee == (u.id | string) else '' }}>{{ u.label }}</option>{% endfor %}
+        {% endif %}
+      </select>
+    </div>
+    <div class="flex gap-2">
+      <button type="submit" class="btn btn-primary">Найти</button>
+      {% if has_filters %}<a href="/tasks?view={{ view }}" class="btn btn-secondary">Сбросить</a>{% endif %}
+    </div>
+  </div>
+  <details class="mt-3" {{ 'open' if (p.due_from or p.due_to) else '' }}>
+    <summary class="cursor-pointer text-sm font-medium text-slate-600 hover:text-slate-900">Срок выполнения</summary>
+    <div class="mt-3 flex max-w-md gap-2">
+      <input type="date" name="due_from" value="{{ p.due_from }}" class="input" aria-label="Срок с">
+      <input type="date" name="due_to" value="{{ p.due_to }}" class="input" aria-label="Срок по">
+    </div>
+  </details>
+</form>
+
+<div class="card overflow-hidden">
+  {% if page.items %}
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200">
+      <thead class="bg-slate-50">
+        <tr>
+          <th scope="col" class="th w-16">Готово</th>
+          {{ sort_th(request, 'Задача', 'title', sort) }}
+          {{ sort_th(request, 'Срок', 'due', sort) }}
+          {{ sort_th(request, 'Приоритет', 'priority', sort) }}
+          <th scope="col" class="th">Статус</th>
+          <th scope="col" class="th">Исполнитель</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for t in page.items %}
+        <tr class="hover:bg-slate-50/60">
+          <td class="td">
+            {% if can(user, 'tasks:write') %}
+              <form method="post" action="/tasks/{{ t.id }}/status">
+                <input type="hidden" name="status" value="{{ 'todo' if t.status.value == 'done' else 'done' }}">
+                <input type="hidden" name="next" value="{{ request.url.path }}{{ '?' ~ request.url.query if request.url.query else '' }}">
+                <button type="submit" class="flex h-5 w-5 items-center justify-center rounded border {{ 'border-emerald-500 bg-emerald-500 text-white' if t.status.value == 'done' else 'border-slate-300 bg-white hover:border-emerald-500' }}"
+                        title="{{ 'Вернуть в работу' if t.status.value == 'done' else 'Отметить выполненной' }}" aria-label="{{ 'Вернуть в работу' if t.status.value == 'done' else 'Отметить выполненной' }}">
+                  {% if t.status.value == 'done' %}<svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.8 3.8 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>{% endif %}
+                </button>
+              </form>
+            {% endif %}
+          </td>
+          <td class="td">
+            <a href="/tasks/{{ t.id }}" class="font-medium {{ 'text-slate-400 line-through' if t.status.value in ('done', 'cancelled') else 'text-slate-900 hover:text-indigo-600' }}">{{ t.title }}</a>
+            <div class="text-xs text-slate-500">
+              {% if t.client %}<a href="/clients/{{ t.client.id }}" class="hover:text-indigo-600">{{ t.client.name }}</a>{% endif %}
+              {% if t.deal %}{{ ' · ' if t.client }}<a href="/deals/{{ t.deal.id }}" class="hover:text-indigo-600">{{ t.deal.title }}</a>{% endif %}
+            </div>
+          </td>
+          <td class="td whitespace-nowrap">{{ due_label(t) }}</td>
+          <td class="td">{{ priority_badge(t.priority.value) }}</td>
+          <td class="td">{{ task_status_badge(t) }}</td>
+          <td class="td">{{ t.assignee.full_name if t.assignee else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="px-6 py-12 text-center">
+    {% if has_filters or view != 'open' %}
+      <p class="text-sm font-medium text-slate-900">Задач не найдено</p>
+      <p class="mt-1 text-sm text-slate-500">Смените вкладку или условия поиска.</p>
+    {% else %}
+      <p class="text-sm font-medium text-slate-900">Открытых задач нет</p>
+      <p class="mt-1 text-sm text-slate-500">Создайте задачу и назначьте исполнителя — её можно привязать к клиенту или сделке.</p>
+      {% if can(user, 'tasks:write') %}<a href="/tasks/new" class="btn btn-primary mt-4">Добавить задачу</a>{% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{{ pagination(request, page) }}
+<script src="/static/js/filters.js" defer></script>
+{% endblock %}

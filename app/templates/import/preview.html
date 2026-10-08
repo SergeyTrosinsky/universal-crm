@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% set label = ui.client.pl if kind == 'clients' else ui.deal.pl %}
+{% block title %}Проверка файла · {{ app_name }}{% endblock %}
+
+{% macro rows_table(rows) %}
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200">
+      <thead class="bg-slate-50"><tr>
+        <th scope="col" class="th w-20">Строка</th><th scope="col" class="th">Запись</th>
+        <th scope="col" class="th w-44">Результат</th><th scope="col" class="th">Что не так / примечание</th>
+      </tr></thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for r in rows %}
+        <tr>
+          <td class="td whitespace-nowrap text-slate-500">{{ r.row }}</td>
+          <td class="td font-medium text-slate-900">{{ r.title }}</td>
+          <td class="td">
+            {% set styles = {'create': 'bg-emerald-50 text-emerald-700', 'update': 'bg-sky-50 text-sky-700', 'skip': 'bg-slate-100 text-slate-600', 'error': 'bg-rose-50 text-rose-700'} %}
+            <span class="badge {{ styles[r.action] }}">{{ action_labels[r.action] }}</span>
+          </td>
+          <td class="td text-sm {{ 'text-rose-700' if r.action == 'error' else 'text-slate-500' }}">
+            {% for m in r.messages %}<div>{{ m }}</div>{% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="mb-6">
+  <a href="/import/{{ kind }}" class="text-sm text-slate-500 hover:text-slate-900">&larr; Другой файл</a>
+  <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Проверка файла: {{ label | lower }}</h1>
+  <p class="mt-1 text-sm text-slate-500">Файл «{{ filename }}». Пока вы не нажали «Загрузить», в CRM ничего не изменилось.</p>
+</div>
+
+{% if report.file_errors %}
+<div role="alert" class="mb-6 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-800 ring-1 ring-inset ring-rose-200">
+  <p class="font-medium">Файл нельзя загрузить:</p>
+  <ul class="mt-1 list-disc pl-5">{% for e in report.file_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  <p class="mt-2"><a href="/import/{{ kind }}/template?format=xlsx" class="font-medium underline">Скачайте шаблон</a>, чтобы сверить названия колонок.</p>
+</div>
+{% else %}
+<div class="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+  {% for title, value, tone in (
+      ('Строк в файле', report.total, 'text-slate-900'),
+      ('Будет создано', report.created, 'text-emerald-600'),
+      ('Будет обновлено', report.updated, 'text-sky-600'),
+      ('Пропущено', report.skipped, 'text-slate-500'),
+      ('С ошибками', report.failed, 'text-rose-600')) %}
+  <div class="card p-4"><p class="text-xs font-medium uppercase tracking-wide text-slate-500">{{ title }}</p><p class="mt-1 text-2xl font-semibold {{ tone }}">{{ value }}</p></div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if report.warnings %}
+<div class="mb-6 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-inset ring-amber-200">
+  <ul class="list-disc pl-5">{% for w in report.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% if token %}
+<form method="post" action="/import/{{ kind }}/confirm" class="card mb-6 flex flex-wrap items-center justify-between gap-4 p-4">
+  <input type="hidden" name="token" value="{{ token }}">
+  <p class="text-sm text-slate-600">
+    Будет загружено строк: <strong class="text-slate-900">{{ report.loadable }}</strong>.
+    {% if report.failed %}Строки с ошибками <strong>не загрузятся</strong>: исправьте их в файле и загрузите отдельно.{% endif %}
+  </p>
+  <div class="flex gap-2">
+    <a href="/import/{{ kind }}" class="btn btn-secondary">Отмена</a>
+    <button type="submit" class="btn btn-primary">Загрузить {{ report.loadable }}</button>
+  </div>
+</form>
+{% elif not report.file_errors %}
+<div class="card mb-6 flex flex-wrap items-center justify-between gap-4 p-4">
+  <p class="text-sm text-slate-600">Загружать нечего: все строки с ошибками или уже есть в CRM.</p>
+  <a href="/import/{{ kind }}" class="btn btn-primary">Загрузить другой файл</a>
+</div>
+{% endif %}
+
+{% if error_rows %}
+<h2 class="mb-2 text-base font-semibold text-slate-900">Ошибки ({{ report.failed }})</h2>
+{{ rows_table(error_rows) }}
+{% if more_errors %}<p class="mt-2 text-sm text-slate-500">…и ещё {{ more_errors }}. Исправьте показанные и загрузите файл заново — список обновится.</p>{% endif %}
+{% endif %}
+
+{% if ok_rows %}
+<h2 class="mb-2 mt-8 text-base font-semibold text-slate-900">Остальные строки</h2>
+{{ rows_table(ok_rows) }}
+{% if more_ok %}<p class="mt-2 text-sm text-slate-500">…и ещё {{ more_ok }} строк.</p>{% endif %}
+{% endif %}
+{% endblock %}

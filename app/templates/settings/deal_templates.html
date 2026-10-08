@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Шаблоны · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Шаблоны: {{ ui.deal.pl | lower }}</h1>
+    <p class="mt-1 max-w-2xl text-sm text-slate-500">
+      Шаблон — это готовый набор дополнительных полей. При добавлении записи в разделе «{{ ui.deal.pl }}» выбирается
+      «Стандартная форма» или один из шаблонов, и в форме остаются только нужные поля.
+      Поля без шаблона общие: они показываются всегда.
+    </p>
+  </div>
+  <a href="/settings/templates/new" class="btn btn-primary">Новый шаблон</a>
+</div>
+
+{% if templates %}
+<div class="space-y-4">
+  {% for t in templates %}
+  {% set used = usage.get(t.id, {"fields": 0, "deals": 0}) %}
+  <section class="card p-5 {{ '' if t.is_active else 'bg-slate-50/70' }}">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div class="min-w-0">
+        <h2 class="flex flex-wrap items-center gap-2 text-base font-semibold {{ 'text-slate-900' if t.is_active else 'text-slate-500' }}">
+          <a href="/settings/templates/{{ t.id }}/edit" class="hover:text-indigo-600">{{ t.name }}</a>
+          {% if not t.is_active %}<span class="badge bg-slate-200 text-slate-600">Скрыт</span>{% endif %}
+        </h2>
+        {% if t.description %}<p class="mt-1 text-sm text-slate-500">{{ t.description }}</p>{% endif %}
+        <p class="mt-1 text-xs text-slate-400">Полей: {{ used.fields }} · {{ ui.deal.pl }} с этим шаблоном: {{ used.deals }}</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        {% for direction, arrow, disabled in (('up', '↑', loop.first), ('down', '↓', loop.last)) %}
+          <form method="post" action="/settings/templates/{{ t.id }}/move">
+            <input type="hidden" name="direction" value="{{ direction }}">
+            <button type="submit" {{ 'disabled' if disabled else '' }} aria-label="{{ 'Выше' if direction == 'up' else 'Ниже' }}"
+                    class="h-8 w-8 rounded-lg text-slate-500 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 disabled:opacity-30">{{ arrow }}</button>
+          </form>
+        {% endfor %}
+        <a href="/settings/templates/{{ t.id }}/edit" class="btn btn-secondary">Изменить</a>
+        <form method="post" action="/settings/templates/{{ t.id }}/toggle">
+          <button type="submit" class="btn btn-secondary">{{ 'Скрыть' if t.is_active else 'Показать' }}</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="mt-4 flex flex-wrap items-center gap-2">
+      {% for f in fields_by_template[t.id] %}
+        <a href="/settings/fields/{{ f.id }}/edit" class="badge {{ 'bg-indigo-50 text-indigo-700' if f.is_active else 'bg-slate-200 text-slate-500' }}">{{ f.label }}</a>
+      {% else %}
+        <span class="text-sm text-slate-400">В шаблоне пока нет полей.</span>
+      {% endfor %}
+      <a href="/settings/fields/new?entity=deal&template={{ t.id }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">+ Добавить поле</a>
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card px-6 py-12 text-center">
+  <p class="text-sm font-medium text-slate-900">Шаблонов пока нет</p>
+  <p class="mx-auto mt-1 max-w-md text-sm text-slate-500">Например, «Автосервис» с полями «Марка авто», «VIN», «Госномер» или «Окрашивание» с полями «Мастер», «Дата посещения». Готовые наборы можно применить на странице «Поля».</p>
+  <div class="mt-4 flex justify-center gap-2">
+    <a href="/settings/templates/new" class="btn btn-primary">Создать шаблон</a>
+    <a href="/settings/fields?entity=deal" class="btn btn-secondary">Готовые наборы</a>
+  </div>
+</div>
+{% endif %}
+
+<section class="card mt-6 p-5">
+  <h2 class="text-base font-semibold text-slate-900">Общие поля</h2>
+  <p class="mt-1 text-sm text-slate-500">Показываются при любом выборе: и в стандартной форме, и во всех шаблонах.</p>
+  <div class="mt-3 flex flex-wrap items-center gap-2">
+    {% for f in common_fields %}
+      <a href="/settings/fields/{{ f.id }}/edit" class="badge {{ 'bg-slate-100 text-slate-700' if f.is_active else 'bg-slate-200 text-slate-500' }}">{{ f.label }}</a>
+    {% else %}
+      <span class="text-sm text-slate-400">Общих полей нет.</span>
+    {% endfor %}
+    <a href="/settings/fields/new?entity=deal" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">+ Добавить общее поле</a>
+  </div>
+</section>
+{% endblock %}

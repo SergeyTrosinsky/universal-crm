@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% from "partials/badges.html" import status_badge %}
+{% set elabels = {'client': ui.client.pl, 'deal': ui.deal.pl} %}
+{% block title %}Поля · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Пользовательские поля</h1>
+    <p class="mt-1 max-w-2xl text-sm text-slate-500">
+      Добавляйте свои поля для разделов «{{ ui.client.pl }}» и «{{ ui.deal.pl }}» — они сразу появятся в формах, карточках, поиске и фильтрах.
+      Скрытое поле не показывается, но его данные сохраняются.
+    </p>
+  </div>
+  <a href="/settings/fields/new?entity={{ entity }}" class="btn btn-primary">Новое поле</a>
+</div>
+
+<div class="mb-4 inline-flex rounded-lg bg-slate-100 p-1" role="tablist">
+  {% for key, label in elabels.items() %}
+    <a href="/settings/fields?entity={{ key }}" role="tab" aria-selected="{{ 'true' if key == entity else 'false' }}"
+       class="rounded-md px-4 py-1.5 text-sm font-medium {{ 'bg-white text-slate-900 shadow-sm' if key == entity else 'text-slate-600 hover:text-slate-900' }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="card overflow-hidden">
+  {% if fields %}
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200">
+      <thead class="bg-slate-50">
+        <tr>
+          <th scope="col" class="th w-24">Порядок</th>
+          <th scope="col" class="th">Поле</th>
+          <th scope="col" class="th">Тип</th>
+          {% if entity == 'deal' %}<th scope="col" class="th">Шаблон</th>{% endif %}
+          <th scope="col" class="th">Свойства</th>
+          <th scope="col" class="th">Заполнено</th>
+          <th scope="col" class="th"><span class="sr-only">Действия</span></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for f in fields %}
+        <tr class="{{ '' if f.is_active else 'bg-slate-50/70 text-slate-400' }}">
+          <td class="td">
+            <div class="flex gap-1">
+              {% for direction, arrow, disabled in (('up', '↑', loop.first), ('down', '↓', loop.last)) %}
+                <form method="post" action="/settings/fields/{{ f.id }}/move">
+                  <input type="hidden" name="direction" value="{{ direction }}">
+                  <button type="submit" {{ 'disabled' if disabled else '' }} aria-label="{{ 'Выше' if direction == 'up' else 'Ниже' }}"
+                          class="h-8 w-8 rounded-lg text-slate-500 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 disabled:opacity-30">{{ arrow }}</button>
+                </form>
+              {% endfor %}
+            </div>
+          </td>
+          <td class="td">
+            <a href="/settings/fields/{{ f.id }}/edit" class="font-medium {{ 'text-slate-900 hover:text-indigo-600' if f.is_active else 'text-slate-500' }}">{{ f.label }}</a>
+            <div class="font-mono text-xs text-slate-400">{{ f.code }}</div>
+          </td>
+          <td class="td">{{ field_type_labels.get(f.field_type.value, f.field_type.value) }}</td>
+          {% if entity == 'deal' %}<td class="td">{% if f.template_id %}<span class="badge bg-indigo-50 text-indigo-700">{{ template_names.get(f.template_id, '—') }}</span>{% else %}<span class="text-slate-400">Общее</span>{% endif %}</td>{% endif %}
+          <td class="td">
+            <div class="flex flex-wrap gap-1">
+              {% if f.is_required %}<span class="badge bg-amber-50 text-amber-700">Обязательное</span>{% endif %}
+              {% if f.is_filterable %}<span class="badge bg-slate-100 text-slate-600">Фильтр</span>{% endif %}
+              {% if f.show_in_list %}<span class="badge bg-slate-100 text-slate-600">В списке</span>{% endif %}
+              {% if not f.is_active %}<span class="badge bg-slate-200 text-slate-600">Скрыто</span>{% endif %}
+            </div>
+          </td>
+          <td class="td">{{ counts.get(f.id, 0) }}</td>
+          <td class="td">
+            <div class="flex items-center justify-end gap-3 whitespace-nowrap">
+              <a href="/settings/fields/{{ f.id }}/edit" class="font-medium text-indigo-600 hover:text-indigo-500">Изменить</a>
+              <form method="post" action="/settings/fields/{{ f.id }}/toggle">
+                <button type="submit" class="font-medium text-slate-600 hover:text-slate-900">{{ 'Скрыть' if f.is_active else 'Показать' }}</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <div class="px-6 py-12 text-center">
+      <p class="text-sm font-medium text-slate-900">Полей для раздела «{{ elabels[entity] }}» пока нет</p>
+      <p class="mx-auto mt-1 max-w-md text-sm text-slate-500">Например, для автосервиса — «Марка авто», «VIN», «Госномер»; для салона красоты — «Мастер», «Услуга», «Дата посещения».</p>
+      <a href="/settings/fields/new?entity={{ entity }}" class="btn btn-primary mt-4">Создать первое поле</a>
+    </div>
+  {% endif %}
+</div>
+
+<details class="card mt-6 p-5">
+  <summary class="cursor-pointer text-sm font-semibold text-slate-900">Быстрый старт: готовые наборы</summary>
+  <p class="mt-2 text-sm text-slate-500">Добавят шаблон с полями и статусы воронки. То, что уже существует, не дублируется; лишнее можно скрыть или удалить.</p>
+  <div class="mt-4 grid gap-4 md:grid-cols-2">
+    {% for key, preset in presets.items() %}
+      <form method="post" action="/settings/fields/preset/{{ key }}" class="rounded-lg border border-slate-200 p-4">
+        <h3 class="text-sm font-semibold text-slate-900">{{ preset.title }}</h3>
+        <p class="mt-1 text-sm text-slate-500">{{ preset.description }}</p>
+        <button type="submit" class="btn btn-secondary mt-3">Применить</button>
+      </form>
+    {% endfor %}
+  </div>
+</details>
+{% endblock %}

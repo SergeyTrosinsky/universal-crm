@@ -1,0 +1,69 @@
+{# Меню. Раздел показывается, только если у роли есть нужное право. #}
+{% set main_nav = [
+  ('/', 'Главная', 'dashboard:read'),
+  ('/clients', ui.client.pl, 'clients:read'),
+  ('/deals', ui.deal.pl, 'deals:read'),
+  ('/tasks', 'Задачи', 'tasks:read'),
+] %}
+{% set settings_nav = [
+  ('/settings/general', 'Общие', 'settings:manage'),
+  ('/settings/fields', 'Поля', 'settings:manage'),
+  ('/settings/templates', 'Шаблоны', 'settings:manage'),
+  ('/settings/statuses', 'Статусы', 'settings:manage'),
+  ('/settings/users', 'Пользователи', 'users:manage'),
+  ('/settings/roles', 'Роли', 'users:manage'),
+] %}
+{% set ns = namespace(settings_visible=false) %}
+{% for href, label, perm in settings_nav %}{% if can(user, perm) %}{% set ns.settings_visible = true %}{% endif %}{% endfor %}
+
+{% macro nav_link(href, label, extra) %}
+  {% set active = request.url.path == href or (href != '/' and request.url.path.startswith(href ~ '/')) %}
+  <a href="{{ href }}"
+     class="{{ extra }} rounded-lg px-3 py-2 text-sm font-medium transition {{ 'bg-indigo-50 text-indigo-700' if active else 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }}"
+     {% if active %}aria-current="page"{% endif %}>{{ label }}</a>
+{% endmacro %}
+
+<header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
+  <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+    <div class="flex items-center gap-6">
+      <a href="/" class="flex items-center gap-2 font-semibold text-slate-900">
+        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">{{ app_name[:1] }}</span>
+        <span class="hidden lg:inline">{{ app_name }}</span>
+      </a>
+      <nav class="hidden items-center gap-1 md:flex" aria-label="Основное меню">
+        {% for href, label, perm in main_nav %}{% if can(user, perm) %}{{ nav_link(href, label, '') }}{% endif %}{% endfor %}
+        {% if ns.settings_visible %}
+          <details class="relative" data-dropdown>
+            <summary class="flex cursor-pointer list-none items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition {{ 'bg-indigo-50 text-indigo-700' if request.url.path.startswith('/settings') else 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }}">
+              Настройки
+              <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+            </summary>
+            <div class="absolute left-0 z-40 mt-2 w-48 rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200">
+              {% for href, label, perm in settings_nav %}{% if can(user, perm) %}{{ nav_link(href, label, 'block') }}{% endif %}{% endfor %}
+            </div>
+          </details>
+        {% endif %}
+      </nav>
+    </div>
+
+    <div class="flex items-center gap-2 sm:gap-3">
+      <a href="/profile" class="hidden text-right leading-tight sm:block" title="Профиль">
+        <div class="text-sm font-medium text-slate-900">{{ user.full_name }}</div>
+        <div class="text-xs text-slate-500">{{ user.role.name }}</div>
+      </a>
+      <form method="post" action="/logout">
+        <button type="submit" class="btn btn-secondary">Выйти</button>
+      </form>
+      <button type="button" class="btn btn-secondary md:hidden" data-toggle="mobile-nav" aria-label="Меню" aria-expanded="false">
+        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 5A.75.75 0 012.75 9h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 9.75zm0 5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clip-rule="evenodd"/></svg>
+      </button>
+    </div>
+  </div>
+  <nav id="mobile-nav" class="hidden border-t border-slate-200 bg-white px-4 py-2 md:hidden" aria-label="Мобильное меню">
+    <div class="flex flex-col gap-1">
+      {% for href, label, perm in main_nav %}{% if can(user, perm) %}{{ nav_link(href, label, 'block') }}{% endif %}{% endfor %}
+      {% for href, label, perm in settings_nav %}{% if can(user, perm) %}{{ nav_link(href, label, 'block') }}{% endif %}{% endfor %}
+      {{ nav_link('/profile', 'Профиль', 'block') }}
+    </div>
+  </nav>
+</header>

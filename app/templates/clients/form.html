@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import field as input_field, select_field, textarea_field, error_box %}
+{% from "partials/custom_fields_form.html" import custom_inputs %}
+{% set editing = client is not none %}
+{% block title %}{{ 'Изменение' if editing else 'Добавить ' ~ ui.client.acc }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl">
+  <a href="{{ '/clients/%d' % client.id if editing else '/clients' }}" class="text-sm text-slate-500 hover:text-slate-700">&larr; {{ 'Назад к карточке' if editing else 'Назад к списку' }}</a>
+  <h1 class="mb-6 mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ client.name if editing else 'Добавить ' ~ ui.client.acc }}</h1>
+
+  <form method="post" action="{{ '/clients/%d/edit' % client.id if editing else '/clients/new' }}" class="space-y-6">
+    {{ error_box(errors.get('__all__')) }}
+
+    <section class="card p-6">
+      <h2 class="mb-4 text-base font-semibold text-slate-900">Основное</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div class="sm:col-span-2">
+          {{ input_field('Имя или название', 'name', form.get('name', ''), 'text', true, 'Иван Петров', 'name', error=errors.get('name')) }}
+        </div>
+        {{ select_field('Тип', 'type', client_type_labels.items(), form.get('type', 'person'), true, error=errors.get('type')) }}
+        {{ input_field('Компания', 'company_name', form.get('company_name', ''), error=errors.get('company_name')) }}
+        {{ input_field('Телефон', 'phone', form.get('phone', ''), 'tel', false, '+7 900 000-00-00', 'off', error=errors.get('phone')) }}
+        {{ input_field('Email', 'email', form.get('email', ''), 'email', false, 'name@company.com', 'off', error=errors.get('email')) }}
+        <div class="sm:col-span-2">
+          {{ input_field('Адрес', 'address', form.get('address', ''), error=errors.get('address')) }}
+        </div>
+        {{ select_field('Ответственный', 'owner_id', options_of(owners, 'id', 'label'),
+                        form.get('owner_id', ''), false, 'Не назначен', errors.get('owner_id')) }}
+        <div class="sm:col-span-2">
+          {{ textarea_field('Заметки', 'notes', form.get('notes', ''), 3, false, '', errors.get('notes')) }}
+        </div>
+      </div>
+    </section>
+
+    {% if fields %}
+    <section class="card p-6">
+      <h2 class="mb-4 text-base font-semibold text-slate-900">Дополнительные поля</h2>
+      <div class="grid gap-4 sm:grid-cols-2">{{ custom_inputs(fields, cf_values, errors) }}</div>
+    </section>
+    {% elif can(user, 'settings:manage') %}
+    <p class="text-sm text-slate-500">Нужны свои поля (например, «VIN» или «Источник»)? <a href="/settings/fields?entity=client" class="font-medium text-indigo-600 hover:text-indigo-500">Настроить поля клиентов</a></p>
+    {% endif %}
+
+    <div class="flex items-center gap-3">
+      <button type="submit" class="btn btn-primary">{{ 'Сохранить' if editing else 'Добавить' }}</button>
+      <a href="{{ '/clients/%d' % client.id if editing else '/clients' }}" class="btn btn-secondary">Отмена</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

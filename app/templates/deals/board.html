@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Доска: {{ ui.deal.pl | lower }} · {{ app_name }}{% endblock %}
+{% block main_class %}px-4 py-8{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Доска: {{ ui.deal.pl | lower }}</h1>
+    <p class="mt-1 text-sm text-slate-500">{% if movable %}Перетаскивайте карточки между колонками, чтобы менять статус.{% else %}Просмотр воронки по статусам.{% endif %} Всего: {{ total_deals }}</p>
+  </div>
+  <div class="flex items-center gap-2">
+    <div class="inline-flex rounded-lg bg-white p-0.5 ring-1 ring-slate-200" role="group" aria-label="Вид">
+      <a href="/deals{{ '?client=%d' % client_filter.id if client_filter else '' }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900">Список</a>
+      <span class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white" aria-current="page">Доска</span>
+    </div>
+    {% if can(user, 'deals:write') %}<a href="/deals/new{{ '?client_id=%d' % client_filter.id if client_filter else '' }}" class="btn btn-primary">Добавить {{ ui.deal.acc }}</a>{% endif %}
+  </div>
+</div>
+
+{% if client_filter %}
+<p class="mb-3 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700">
+  {{ ui.client.sg }}: <a href="/clients/{{ client_filter.id }}" class="font-medium underline">{{ client_filter.name }}</a>
+  <a href="{{ url_with(request, client=None) }}" aria-label="Убрать фильтр по клиенту" class="text-indigo-400 hover:text-indigo-700">&times;</a>
+</p>
+{% endif %}
+
+<form method="get" action="/deals/board" data-filter-form class="card mb-4 p-4">
+  {% if request.query_params.get('client') %}<input type="hidden" name="client" value="{{ request.query_params.get('client') }}">{% endif %}
+  {% set see_all = can(user, 'deals:read_all') %}
+  <div class="grid gap-3 {{ 'md:grid-cols-[minmax(0,1fr)_14rem_auto]' if see_all else 'md:grid-cols-[minmax(0,1fr)_auto]' }}">
+    <div>
+      <label for="q" class="sr-only">Поиск</label>
+      <input id="q" name="q" type="search" value="{{ p.q }}" placeholder="Поиск: название, {{ ui.client.sg | lower }}, значения ваших полей…" class="input" autocomplete="off">
+    </div>
+    {% if see_all %}
+    <div>
+      <label for="responsible" class="sr-only">Ответственный</label>
+      <select id="responsible" name="responsible" class="input">
+        <option value="">Все ответственные</option>
+        {% for u in users %}<option value="{{ u.id }}" {{ 'selected' if p.responsible == (u.id | string) else '' }}>{{ u.label }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="flex gap-2">
+      <button type="submit" class="btn btn-primary">Найти</button>
+      {% if has_filters %}<a href="/deals/board" class="btn btn-secondary">Сбросить</a>{% endif %}
+    </div>
+  </div>
+</form>
+
+<p id="board-message" role="status" class="mb-3 hidden rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700"></p>
+
+{% if columns %}
+<div class="flex items-start gap-4 overflow-x-auto pb-4" data-board data-movable="{{ 'true' if movable else 'false' }}">
+  {% for col in columns %}
+  {% set st = col.status %}
+  <section class="flex w-72 shrink-0 flex-col rounded-xl bg-slate-100/80 ring-1 ring-slate-200" data-column data-status-id="{{ st.id }}" aria-label="{{ st.name }}">
+    <header class="rounded-t-xl border-t-4 px-4 py-3" style="border-color: {{ st.color }}">
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="truncate text-sm font-semibold text-slate-900">{{ st.name }}{% if not st.is_active %} <span class="font-normal text-slate-400">(откл.)</span>{% endif %}</h2>
+        <span class="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200" data-count>{{ col.count }}</span>
+      </div>
+      <p class="mt-1 min-h-4 text-xs text-slate-500" data-totals>{% for cur, amt in col.totals %}{{ amt | money(cur) }}{{ ' · ' if not loop.last }}{% endfor %}</p>
+    </header>
+
+    <ul class="flex min-h-24 flex-col gap-2 px-2 pb-2" data-dropzone>
+      {% for d in col.deals %}
+      <li class="rounded-lg bg-white p-3 text-sm shadow-sm ring-1 ring-slate-200 {{ 'cursor-grab active:cursor-grabbing' if movable else '' }}"
+          data-card data-deal-id="{{ d.id }}" data-amount="{{ d.amount }}" data-currency="{{ d.currency }}"
+          {% if movable %}draggable="true"{% endif %}>
+        <a href="/deals/{{ d.id }}" class="block font-medium text-slate-900 hover:text-indigo-600" draggable="false">{{ d.title }}</a>
+        <a href="/clients/{{ d.client_id }}" class="mt-0.5 block truncate text-xs text-slate-500 hover:text-indigo-600" draggable="false">{{ d.client.name }}</a>
+        <div class="mt-2 flex items-center justify-between gap-2">
+          <span class="font-semibold text-slate-900">{{ d.amount | money(d.currency) }}</span>
+          <span class="truncate text-xs text-slate-500" title="{{ d.responsible.full_name if d.responsible else 'Не назначен' }}">{{ d.responsible.full_name.split()[0] if d.responsible else '—' }}</span>
+        </div>
+        <p class="mt-1 text-xs text-slate-400">{{ d.deal_date | date }}</p>
+        {% if movable %}
+        <label class="mt-2 hidden text-xs text-slate-500 [@media(hover:none)]:block">
+          <span class="sr-only">Статус</span>
+          <select data-move-select class="input py-1 text-xs" aria-label="Переместить «{{ d.title }}» в статус">
+            {% for sid, sname in all_statuses %}<option value="{{ sid }}" {{ 'selected' if sid == st.id else '' }}>{{ sname }}</option>{% endfor %}
+          </select>
+        </label>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% if col.hidden %}
+      <a href="/deals?status={{ st.id }}{{ '&q=' ~ (p.q | urlencode) if p.q }}{{ '&responsible=' ~ p.responsible if p.responsible }}{{ '&client=%d' % client_filter.id if client_filter }}"
+         class="border-t border-slate-200 px-4 py-2 text-center text-xs font-medium text-indigo-600 hover:text-indigo-500">Ещё {{ col.hidden }} — открыть списком</a>
+    {% endif %}
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+  <div class="card px-6 py-12 text-center text-sm text-slate-500">Нет активных статусов. {% if can(user, 'settings:manage') %}<a href="/settings/statuses" class="font-medium text-indigo-600">Настроить статусы</a>{% endif %}</div>
+{% endif %}
+
+<script type="application/json" id="board-currencies">{{ currencies | tojson }}</script>
+<script src="/static/js/filters.js" defer></script>
+<script src="/static/js/board.js" defer></script>
+{% endblock %}

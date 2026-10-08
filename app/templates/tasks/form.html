@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import field as input_field, select_field, textarea_field, error_box %}
+{% from "partials/pickers.html" import picker %}
+{% set editing = task is not none %}
+{% block title %}{{ 'Изменение задачи' if editing else 'Новая задача' }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl">
+  <a href="{{ '/tasks/%d' % task.id if editing else '/tasks' }}" class="text-sm text-slate-500 hover:text-slate-700">&larr; {{ 'К задаче' if editing else 'К списку задач' }}</a>
+  <h1 class="mb-6 mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ task.title if editing else 'Новая задача' }}</h1>
+
+  <form method="post" action="{{ '/tasks/%d/edit' % task.id if editing else '/tasks/new' }}" class="space-y-6">
+    {{ error_box(errors.get('__all__')) }}
+    <section class="card p-6">
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div class="sm:col-span-2">
+          {{ input_field('Название', 'title', form.get('title', ''), 'text', true, 'Например, Перезвонить клиенту', error=errors.get('title')) }}
+        </div>
+        <div class="sm:col-span-2">
+          {{ textarea_field('Описание', 'description', form.get('description', ''), 3, false, '', errors.get('description')) }}
+        </div>
+        {{ input_field('Срок выполнения', 'due_at', form.get('due_at', ''), 'datetime-local', false, error=errors.get('due_at')) }}
+        {% if can(user, 'tasks:assign') %}
+          {{ select_field('Исполнитель', 'assignee_id', options_of(users, 'id', 'label'), form.get('assignee_id', ''), false, 'Не назначен', errors.get('assignee_id')) }}
+        {% else %}
+          <div>
+            <span class="label">Исполнитель</span>
+            <p class="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700 ring-1 ring-inset ring-slate-200">{{ task.assignee.full_name if editing and task.assignee else user.full_name }}{{ '' if editing and task.assignee and task.assignee_id != user.id else ' (вы)' }}</p>
+            {% if errors.get('assignee_id') %}<p class="mt-1 text-xs text-rose-600">{{ errors.get('assignee_id') }}</p>{% endif %}
+          </div>
+        {% endif %}
+        {{ select_field('Приоритет', 'priority', task_priorities, form.get('priority', 'normal'), true, error=errors.get('priority')) }}
+        {{ select_field('Статус', 'status', task_statuses, form.get('status', 'todo'), true, error=errors.get('status')) }}
+        {{ picker(ui.client.sg, 'client_id', '/clients/search', picked_client.id if picked_client else '', picked_client.name if picked_client else '', 'Имя, телефон или email…', false, errors.get('client_id')) }}
+        {{ picker(ui.deal.sg, 'deal_id', '/deals/search', picked_deal.id if picked_deal else '', picked_deal.title if picked_deal else '', 'Название сделки или клиент…', false, errors.get('deal_id'), 'Если выбрать сделку, клиент подставится автоматически') }}
+      </div>
+    </section>
+    <div class="flex items-center gap-3">
+      <button type="submit" class="btn btn-primary">{{ 'Сохранить' if editing else 'Создать задачу' }}</button>
+      <a href="{{ '/tasks/%d' % task.id if editing else '/tasks' }}" class="btn btn-secondary">Отмена</a>
+    </div>
+  </form>
+</div>
+<script src="/static/js/client_picker.js" defer></script>
+{% endblock %}

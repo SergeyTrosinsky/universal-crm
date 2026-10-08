@@ -1,0 +1,30 @@
+{# Блок «Задачи» в карточке клиента или сделки. tasks — список или None (нет права), new_url — ссылка на создание #}
+{% from "partials/task_badges.html" import priority_badge, due_label %}
+{% macro related_tasks(tasks, new_url, all_url) %}
+  {% if tasks is not none %}
+  <section class="card overflow-hidden">
+    <div class="flex items-center justify-between px-6 py-4">
+      <h2 class="text-base font-semibold text-slate-900">Задачи <span class="font-normal text-slate-400">· {{ tasks | length }}</span></h2>
+      <div class="flex items-center gap-3 text-sm">
+        <a href="{{ all_url }}" class="text-indigo-600 hover:text-indigo-500">Все</a>
+        {% if can(user, 'tasks:write') %}<a href="{{ new_url }}" class="btn btn-secondary">Новая задача</a>{% endif %}
+      </div>
+    </div>
+    {% if tasks %}
+    <ul class="divide-y divide-slate-100 border-t border-slate-100">
+      {% for t in tasks %}
+      <li class="flex flex-wrap items-center justify-between gap-2 px-6 py-3">
+        <div class="min-w-0">
+          <a href="/tasks/{{ t.id }}" class="text-sm font-medium {{ 'text-slate-400 line-through' if t.status.value in ('done', 'cancelled') else 'text-slate-900 hover:text-indigo-600' }}">{{ t.title }}</a>
+          <div class="text-xs text-slate-500">{{ t.assignee.full_name if t.assignee else 'Не назначен' }}</div>
+        </div>
+        <div class="flex items-center gap-3 text-xs">{{ due_label(t) }} {{ priority_badge(t.priority.value) }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+      <p class="border-t border-slate-100 px-6 py-8 text-center text-sm text-slate-500">Задач пока нет.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+{% endmacro %}

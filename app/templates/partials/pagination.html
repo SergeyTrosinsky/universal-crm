@@ -1,0 +1,39 @@
+{# Навигация по страницам. Использование: {{ pagination(request, page) }} #}
+{% macro pagination(request, page) %}
+  {% if page.total > 0 %}
+  <nav class="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row" aria-label="Страницы">
+    <p class="text-sm text-slate-500">{{ page.first_item }}–{{ page.last_item }} из {{ page.total }}</p>
+    {% if page.pages > 1 %}
+    <div class="flex items-center gap-1">
+      {% set base = 'inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2.5 text-sm font-medium' %}
+      {% if page.has_prev %}
+        <a href="{{ url_with(request, page=page.page - 1) }}" class="{{ base }} text-slate-600 hover:bg-slate-100" rel="prev" aria-label="Назад">&larr;</a>
+      {% endif %}
+      {% for n in page.window() %}
+        {% if n is none %}
+          <span class="{{ base }} text-slate-400">…</span>
+        {% elif n == page.page %}
+          <span class="{{ base }} bg-indigo-600 text-white" aria-current="page">{{ n }}</span>
+        {% else %}
+          <a href="{{ url_with(request, page=n) }}" class="{{ base }} text-slate-600 hover:bg-slate-100">{{ n }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if page.has_next %}
+        <a href="{{ url_with(request, page=page.page + 1) }}" class="{{ base }} text-slate-600 hover:bg-slate-100" rel="next" aria-label="Вперёд">&rarr;</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </nav>
+  {% endif %}
+{% endmacro %}
+
+{# Заголовок колонки с сортировкой: key — «name», обратный порядок — «-name» #}
+{% macro sort_th(request, label, key, current, classes='') %}
+  {% set active = current == key or current == '-' ~ key %}
+  {% set target = '-' ~ key if current == key else key %}
+  <th scope="col" class="th {{ classes }}">
+    <a href="{{ url_with(request, sort=target, page=None) }}" class="inline-flex items-center gap-1 hover:text-slate-900 {{ 'text-slate-900' if active else '' }}">
+      {{ label }}{% if active %}<span aria-hidden="true">{{ '↓' if current.startswith('-') else '↑' }}</span>{% endif %}
+    </a>
+  </th>
+{% endmacro %}

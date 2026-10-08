@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "partials/badges.html" import status_badge, kind_badge %}
+{% from "partials/related_tasks.html" import related_tasks with context %}
+{% from "partials/history.html" import history_block with context %}
+{% block title %}{{ deal.title }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+{% set vals = cf_map(deal) %}
+<a href="/deals" class="text-sm text-slate-500 hover:text-slate-700">&larr; {{ ui.deal.pl }}</a>
+
+<div class="mb-6 mt-2 flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{{ deal.title }}</h1>
+    <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+      {{ status_badge(deal.status) }}
+      {{ kind_badge(deal.status.kind.value) }}
+      <span>· создана {{ deal.created_at | dt('%d.%m.%Y') }}</span>
+    </p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    {% if can(user, 'deals:write') %}<a href="/deals/{{ deal.id }}/edit" class="btn btn-secondary">Изменить</a>{% endif %}
+    {% if can(user, 'deals:delete') %}
+      <form method="post" action="/deals/{{ deal.id }}/delete"
+            data-confirm="Удалить «{{ deal.title }}»? Это действие необратимо.">
+        <button type="submit" class="btn btn-danger">Удалить</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid gap-6 lg:grid-cols-3">
+  <section class="card p-6 lg:col-span-1">
+    <h2 class="mb-4 text-base font-semibold text-slate-900">{{ ui.deal.sg }}</h2>
+    <dl class="space-y-3 text-sm">
+      <div><dt class="text-slate-500">Сумма</dt><dd class="mt-0.5 text-lg font-semibold text-slate-900">{{ deal.amount | money(deal.currency) }}</dd></div>
+      <div><dt class="text-slate-500">{{ ui.client.sg }}</dt><dd class="mt-0.5 font-medium"><a href="/clients/{{ deal.client.id }}" class="text-indigo-600 hover:underline">{{ deal.client.name }}</a></dd></div>
+      <div><dt class="text-slate-500">Ответственный</dt><dd class="mt-0.5 font-medium text-slate-900">{{ deal.responsible.full_name if deal.responsible else '—' }}</dd></div>
+      {% if deal.template %}<div><dt class="text-slate-500">Шаблон</dt><dd class="mt-0.5 font-medium text-slate-900">{{ deal.template.name }}</dd></div>{% endif %}
+      <div><dt class="text-slate-500">Дата</dt><dd class="mt-0.5 font-medium text-slate-900">{{ deal.deal_date | date }}</dd></div>
+      {% if deal.closed_at %}
+      <div><dt class="text-slate-500">Закрыта</dt><dd class="mt-0.5 font-medium text-slate-900">{{ deal.closed_at | dt('%d.%m.%Y %H:%M') }}</dd></div>
+      {% endif %}
+    </dl>
+
+    {% if can(user, 'deals:write') %}
+    <form method="post" action="/deals/{{ deal.id }}/status" class="mt-6 border-t border-slate-100 pt-4">
+      <label for="status_id" class="label">Сменить статус</label>
+      <div class="flex gap-2">
+        <select id="status_id" name="status_id" class="input">
+          {% for s in statuses %}
+            <option value="{{ s.id }}" {{ 'selected' if s.id == deal.status_id else '' }}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">OK</button>
+      </div>
+    </form>
+    {% endif %}
+  </section>
+
+  <div class="space-y-6 lg:col-span-2">
+    {% if deal.description %}
+    <section class="card p-6">
+      <h2 class="mb-2 text-base font-semibold text-slate-900">Описание</h2>
+      <p class="whitespace-pre-line text-sm text-slate-600">{{ deal.description }}</p>
+    </section>
+    {% endif %}
+
+    {% if fields %}
+    <section class="card p-6">
+      <h2 class="mb-4 text-base font-semibold text-slate-900">Дополнительные поля</h2>
+      <dl class="grid gap-4 text-sm sm:grid-cols-2">
+        {% for f in fields %}
+          <div><dt class="text-slate-500">{{ f.label }}</dt><dd class="mt-0.5 whitespace-pre-line font-medium text-slate-900">{{ cf_display(f, vals.get(f.id)) }}</dd></div>
+        {% endfor %}
+      </dl>
+    </section>
+    {% endif %}
+
+    {{ related_tasks(tasks, '/tasks/new?deal_id=%d' % deal.id, '/tasks?deal=%d&view=all&assignee=all' % deal.id) }}
+
+    {{ history_block(feed, '/deals/%d' % deal.id, can_note) }}
+  </div>
+</div>
+{% endblock %}

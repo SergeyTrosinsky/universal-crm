@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% from "partials/pagination.html" import pagination, sort_th %}
+{% from "partials/filters.html" import custom_filter_inputs %}
+{% from "partials/badges.html" import status_badge, kind_badge %}
+{% from "partials/data_exchange.html" import data_menu %}
+{% block title %}{{ ui.deal.pl }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{{ ui.deal.pl }}</h1>
+    {% if not can(user, 'deals:read_all') %}<p class="mt-1 text-sm text-slate-500">Показаны только ваши записи.</p>{% endif %}
+  </div>
+  <div class="flex items-center gap-2">
+    <div class="inline-flex rounded-lg bg-white p-0.5 ring-1 ring-slate-200" role="group" aria-label="Вид">
+      <span class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white" aria-current="page">Список</span>
+      <a href="/deals/board{{ '?client=%d' % client_filter.id if client_filter else '' }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900">Доска</a>
+    </div>
+    {{ data_menu(request, 'deals', '/deals', can(user, 'deals:write')) }}
+    {% if can(user, 'deals:write') %}<a href="/deals/new{{ '?client_id=%d' % client_filter.id if client_filter else '' }}" class="btn btn-primary">Добавить {{ ui.deal.acc }}</a>{% endif %}
+  </div>
+</div>
+
+{% if client_filter %}
+<p class="mb-3 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700">
+  {{ ui.client.sg }}: <a href="/clients/{{ client_filter.id }}" class="font-medium underline">{{ client_filter.name }}</a>
+  <a href="{{ url_with(request, client=None, page=None) }}" aria-label="Убрать фильтр по клиенту" class="text-indigo-400 hover:text-indigo-700">&times;</a>
+</p>
+{% endif %}
+
+<form method="get" action="/deals" data-filter-form class="card mb-4 p-4">
+  {% if p.client %}<input type="hidden" name="client" value="{{ p.client }}">{% endif %}
+  {% if request.query_params.get('sort') %}<input type="hidden" name="sort" value="{{ request.query_params.get('sort') }}">{% endif %}
+  <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+    <div class="lg:col-span-2">
+      <label for="q" class="sr-only">Поиск</label>
+      <input id="q" name="q" type="search" value="{{ p.q }}" placeholder="Поиск: название, {{ ui.client.sg | lower }}, значения ваших полей…" class="input" autocomplete="off">
+    </div>
+    <div>
+      <label for="status" class="sr-only">Статус</label>
+      <select id="status" name="status" class="input">
+        <option value="">Все статусы</option>
+        {% for s in statuses %}<option value="{{ s.id }}" {{ 'selected' if p.status == (s.id | string) else '' }}>{{ s.name }}{{ '' if s.is_active else ' (откл.)' }}</option>{% endfor %}
+      </select>
+    </div>
+    {% if can(user, 'deals:read_all') %}
+    <div>
+      <label for="responsible" class="sr-only">Ответственный</label>
+      <select id="responsible" name="responsible" class="input">
+        <option value="">Все ответственные</option>
+        {% for u in users %}<option value="{{ u.id }}" {{ 'selected' if p.responsible == (u.id | string) else '' }}>{{ u.label }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
+  </div>
+  <details class="mt-3" {{ 'open' if (p.kind or p.template or p.date_from or p.date_to or p.amount_min or p.amount_max or filters) else '' }}>
+    <summary class="cursor-pointer text-sm font-medium text-slate-600 hover:text-slate-900">Дополнительные фильтры</summary>
+    <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div>
+        <label for="kind" class="label">Результат</label>
+        <select id="kind" name="kind" class="input">
+          <option value="">Любой</option>
+          {% for k in kinds %}<option value="{{ k }}" {{ 'selected' if p.kind == k else '' }}>{{ status_kind_labels[k] }}</option>{% endfor %}
+        </select>
+      </div>
+      {% if templates %}
+      <div>
+        <label for="template" class="label">Шаблон</label>
+        <select id="template" name="template" class="input">
+          <option value="">Любой</option>
+          <option value="none" {{ 'selected' if p.template == 'none' else '' }}>Стандартная форма</option>
+          {% for t in templates %}<option value="{{ t.id }}" {{ 'selected' if p.template == (t.id | string) else '' }}>{{ t.name }}{{ '' if t.is_active else ' (скрыт)' }}</option>{% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div>
+        <span class="label">Дата</span>
+        <div class="flex gap-2">
+          <input type="date" name="date_from" value="{{ p.date_from }}" class="input" aria-label="Дата с">
+          <input type="date" name="date_to" value="{{ p.date_to }}" class="input" aria-label="Дата по">
+        </div>
+      </div>
+      <div>
+        <span class="label">Сумма</span>
+        <div class="flex gap-2">
+          <input type="text" inputmode="decimal" name="amount_min" value="{{ p.amount_min }}" placeholder="от" class="input" aria-label="Сумма от">
+          <input type="text" inputmode="decimal" name="amount_max" value="{{ p.amount_max }}" placeholder="до" class="input" aria-label="Сумма до">
+        </div>
+      </div>
+      {{ custom_filter_inputs(filter_fields, filters) }}
+    </div>
+  </details>
+  <div class="mt-4 flex gap-2">
+    <button type="submit" class="btn btn-primary">Применить</button>
+    {% if has_filters %}<a href="/deals" class="btn btn-secondary">Сбросить</a>{% endif %}
+  </div>
+</form>
+
+{% if page.total %}
+<p class="mb-3 text-sm text-slate-500">
+  Найдено: <span class="font-medium text-slate-900">{{ page.total }}</span>
+  {% if page.extra.totals %} · Сумма: {% for currency, amount in page.extra.totals %}<span class="font-medium text-slate-900">{{ amount | money(currency) }}</span>{{ ', ' if not loop.last }}{% endfor %}{% endif %}
+</p>
+{% endif %}
+
+<div class="card overflow-hidden">
+  {% if page.items %}
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200">
+      <thead class="bg-slate-50">
+        <tr>
+          {{ sort_th(request, ui.deal.sg, 'title', sort) }}
+          <th scope="col" class="th">{{ ui.client.sg }}</th>
+          <th scope="col" class="th">Статус</th>
+          {{ sort_th(request, 'Сумма', 'amount', sort, 'text-right') }}
+          <th scope="col" class="th">Ответственный</th>
+          {{ sort_th(request, 'Дата', 'date', sort) }}
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for d in page.items %}
+        {% if loop.first or d.template_id != loop.previtem.template_id %}
+        {% set group_name = d.template.name if d.template else 'Стандартная' %}
+        <tr class="bg-slate-50/80">
+          <th colspan="6" scope="colgroup" class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {{ group_name }}{% if not d.template and templates %} <span class="font-normal normal-case text-slate-400">· без шаблона</span>{% endif %}
+          </th>
+        </tr>
+        {% endif %}
+        <tr class="hover:bg-slate-50/60">
+          <td class="td"><a href="/deals/{{ d.id }}" class="font-medium text-slate-900 hover:text-indigo-600">{{ d.title }}</a></td>
+          <td class="td"><a href="/clients/{{ d.client_id }}" class="hover:text-indigo-600">{{ d.client.name }}</a></td>
+          <td class="td">{{ status_badge(d.status) }}</td>
+          <td class="td whitespace-nowrap text-right font-medium text-slate-900">{{ d.amount | money(d.currency) }}</td>
+          <td class="td">{{ d.responsible.full_name if d.responsible else '—' }}</td>
+          <td class="td whitespace-nowrap text-slate-500">{{ d.deal_date | date }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="px-6 py-12 text-center">
+    {% if has_filters %}
+      <p class="text-sm font-medium text-slate-900">Ничего не найдено</p>
+      <p class="mt-1 text-sm text-slate-500">Измените условия поиска или сбросьте фильтры.</p>
+      <a href="/deals" class="btn btn-secondary mt-4">Сбросить фильтры</a>
+    {% else %}
+      <p class="text-sm font-medium text-slate-900">{{ ui.deal.pl }}: пока пусто</p>
+      <p class="mt-1 text-sm text-slate-500">Создайте первую запись: выберите {{ ui.client.acc }} и статус.</p>
+      {% if can(user, 'deals:write') %}<a href="/deals/new" class="btn btn-primary mt-4">Добавить {{ ui.deal.acc }}</a>{% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{{ pagination(request, page) }}
+<script src="/static/js/filters.js" defer></script>
+{% endblock %}

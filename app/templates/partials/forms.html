@@ -1,0 +1,56 @@
+{# Макросы форм. Подключение: {% from "partials/forms.html" import field, select_field, textarea_field, error_box %} #}
+
+{% macro error_box(error) %}
+  {% if error %}
+    <div role="alert" class="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-800 ring-1 ring-inset ring-rose-200">{{ error }}</div>
+  {% endif %}
+{% endmacro %}
+
+{% macro field(label, name, value='', type='text', required=false, placeholder='', autocomplete='off', disabled=false, help='', error='') %}
+  <div>
+    <label for="{{ name }}" class="label">{{ label }}{% if required %}<span class="text-rose-500"> *</span>{% endif %}</label>
+    <input id="{{ name }}" name="{{ name }}" type="{{ type }}"
+           value="{{ value if value is not none else '' }}"
+           placeholder="{{ placeholder }}" autocomplete="{{ autocomplete }}"
+           {% if required %}required{% endif %} {% if disabled %}disabled{% endif %}
+           {% if error %}aria-invalid="true"{% endif %}
+           class="input {{ 'ring-rose-400' if error else '' }}">
+    {% if error %}<p class="mt-1 text-xs text-rose-600">{{ error }}</p>{% endif %}
+    {% if help %}<p class="mt-1 text-xs text-slate-500">{{ help }}</p>{% endif %}
+  </div>
+{% endmacro %}
+
+{# options — список пар (значение, подпись) #}
+{% macro select_field(label, name, options, selected='', required=false, blank='', error='', help='', disabled=false) %}
+  <div>
+    <label for="{{ name }}" class="label">{{ label }}{% if required %}<span class="text-rose-500"> *</span>{% endif %}</label>
+    <select id="{{ name }}" name="{{ name }}" {% if required %}required{% endif %} {% if disabled %}disabled{% endif %}
+            {% if error %}aria-invalid="true"{% endif %} class="input {{ 'ring-rose-400' if error else '' }}">
+      {% if blank %}<option value="">{{ blank }}</option>{% endif %}
+      {% for value, text in options %}
+        <option value="{{ value }}" {{ 'selected' if (value | string) == (selected | string) else '' }}>{{ text }}</option>
+      {% endfor %}
+    </select>
+    {% if error %}<p class="mt-1 text-xs text-rose-600">{{ error }}</p>{% endif %}
+    {% if help %}<p class="mt-1 text-xs text-slate-500">{{ help }}</p>{% endif %}
+  </div>
+{% endmacro %}
+
+{% macro textarea_field(label, name, value='', rows=3, required=false, placeholder='', error='', help='') %}
+  <div>
+    <label for="{{ name }}" class="label">{{ label }}{% if required %}<span class="text-rose-500"> *</span>{% endif %}</label>
+    <textarea id="{{ name }}" name="{{ name }}" rows="{{ rows }}" placeholder="{{ placeholder }}"
+              {% if required %}required{% endif %} {% if error %}aria-invalid="true"{% endif %}
+              class="input {{ 'ring-rose-400' if error else '' }}">{{ value if value is not none else '' }}</textarea>
+    {% if error %}<p class="mt-1 text-xs text-rose-600">{{ error }}</p>{% endif %}
+    {% if help %}<p class="mt-1 text-xs text-slate-500">{{ help }}</p>{% endif %}
+  </div>
+{% endmacro %}
+
+{% macro checkbox(label, name, checked=false, help='', disabled=false) %}
+  <label class="flex items-start gap-2 text-sm text-slate-700">
+    <input type="checkbox" name="{{ name }}" value="1" {{ 'checked' if checked else '' }} {{ 'disabled' if disabled else '' }}
+           class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+    <span>{{ label }}{% if help %}<span class="block text-xs text-slate-500">{{ help }}</span>{% endif %}</span>
+  </label>
+{% endmacro %}

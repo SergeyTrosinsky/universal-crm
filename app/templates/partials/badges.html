@@ -1,0 +1,10 @@
+{% macro status_badge(status) %}
+  <span class="badge bg-slate-100 text-slate-700">
+    <span class="mr-1.5 inline-block h-2 w-2 rounded-full" style="background-color: {{ status.color }}"></span>{{ status.name }}
+  </span>
+{% endmacro %}
+
+{% macro kind_badge(kind) %}
+  {% set styles = {'open': 'bg-sky-50 text-sky-700', 'won': 'bg-emerald-50 text-emerald-700', 'lost': 'bg-rose-50 text-rose-700'} %}
+  <span class="badge {{ styles.get(kind, 'bg-slate-100 text-slate-700') }}">{{ status_kind_labels.get(kind, kind) }}</span>
+{% endmacro %}

@@ -1,0 +1,30 @@
+# Python 3.12+
+# ВАЖНО: диапазоны, а не точные пины — PyPI был недоступен при генерации.
+# После первой установки зафиксируйте точные версии:  pip freeze > requirements.lock
+
+# --- Web ---
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+python-multipart>=0.0.9        # приём HTML-форм (Form(...))
+Jinja2>=3.1.4,<4.0
+itsdangerous>=2.2,<3.0         # подпись flash-сообщений / сессий (Starlette)
+
+# --- Данные ---
+SQLAlchemy>=2.0.30,<2.1
+alembic>=1.13,<2.0
+psycopg2-binary>=2.9.9,<3.0    # драйвер PostgreSQL (для SQLite не нужен, но ставится всегда)
+
+# --- Импорт / экспорт Excel ---
+openpyxl>=3.1,<4.0             # чтение и запись .xlsx
+
+# --- Валидация и настройки ---
+pydantic>=2.8,<3.0
+pydantic-settings>=2.4,<3.0
+email-validator>=2.1,<3.0      # EmailStr в Pydantic
+
+tzdata>=2024.1; sys_platform == "win32"   # база часовых поясов для zoneinfo на Windows
+
+# --- Авторизация ---
+passlib[bcrypt]>=1.7.4,<2.0
+bcrypt>=4.0.1,<5.0             # passlib 1.7.4 несовместим с bcrypt 5.x
+python-jose[cryptography]>=3.4.0,<4.0   # >=3.4.0: исправлены CVE-2024-33663/33664

@@ -1,0 +1,53 @@
+{# Лента «история и заметки» в карточке клиента или сделки.
+   feed — activity_service.feed(...), base — '/clients/5' или '/deals/7', can_note — можно ли писать заметки #}
+{% macro history_block(feed, base, can_note) %}
+<section id="history" class="card overflow-hidden">
+  <div class="px-6 py-4">
+    <h2 class="text-base font-semibold text-slate-900">История и заметки <span class="font-normal text-slate-400">· {{ feed | length }}</span></h2>
+  </div>
+
+  {% if can_note %}
+  <form method="post" action="{{ base }}/notes" class="border-t border-slate-100 px-6 py-4">
+    <label for="note_body" class="label">Новая заметка</label>
+    <textarea id="note_body" name="body" rows="2" maxlength="5000" required class="input" placeholder="Например: договорились созвониться в пятницу"></textarea>
+    <div class="mt-2 flex justify-end"><button type="submit" class="btn btn-primary">Добавить заметку</button></div>
+  </form>
+  {% endif %}
+
+  {% if feed %}
+  <ul class="divide-y divide-slate-100 border-t border-slate-100">
+    {% for item in feed %}
+    <li class="px-6 py-3 text-sm">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <span class="font-medium text-slate-900">{{ item.author or 'Пользователь удалён' }}
+          <span class="font-normal text-slate-500">
+            {% if item.type == 'note' %}оставил(а) заметку{% elif item.kind == 'created' %}создал(а) запись{% else %}изменил(а){% endif %}
+          </span>
+        </span>
+        <span class="text-xs text-slate-400">{{ item.at | dt }}</span>
+      </div>
+      {% if item.type == 'note' %}
+        <p class="mt-1 whitespace-pre-line rounded-lg bg-amber-50 px-3 py-2 text-slate-700">{{ item.body }}</p>
+        {% if can_note and (item.author_id == user.id or can(user, 'settings:manage')) %}
+        <form method="post" action="{{ base }}/notes/{{ item.id }}/delete" data-confirm="Удалить заметку?" class="mt-1">
+          <button type="submit" class="text-xs text-slate-400 hover:text-red-600">Удалить</button>
+        </form>
+        {% endif %}
+      {% elif item.changes %}
+        <ul class="mt-1 space-y-0.5 text-slate-600">
+          {% for c in item.changes %}
+          <li><span class="text-slate-500">{{ c.label }}:</span>
+            <span class="text-slate-400 line-through">{{ c.old }}</span>
+            <span class="text-slate-400">&rarr;</span>
+            <span class="font-medium text-slate-900">{{ c.new }}</span></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    <p class="border-t border-slate-100 px-6 py-8 text-center text-sm text-slate-500">Записей пока нет.</p>
+  {% endif %}
+</section>
+{% endmacro %}

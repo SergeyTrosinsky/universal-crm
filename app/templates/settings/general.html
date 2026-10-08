@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import field as input_field, select_field, error_box %}
+{% block title %}Общие настройки · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl">
+  <h1 class="mb-1 text-2xl font-semibold tracking-tight text-slate-900">Общие настройки</h1>
+  <p class="mb-6 text-sm text-slate-500">Название, валюта и слова, которыми CRM называет ваши сущности. Меняются сразу, без правки кода.</p>
+
+  <form method="post" action="/settings/general" class="space-y-6">
+    {{ error_box(errors.get('__all__')) }}
+    <section class="card p-6">
+      <h2 class="mb-4 text-base font-semibold text-slate-900">Основное</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
+        {{ input_field(labels.app_name, 'app_name', form.get('app_name', ''), 'text', false, env_name or 'Universal CRM', error=errors.get('app_name'), help='Пусто — название по умолчанию') }}
+        {{ select_field(labels.default_currency, 'default_currency', currency_options, form.get('default_currency', 'RUB'), true, error=errors.get('default_currency'), help='Подставляется в новые записи раздела «' ~ ui.deal.pl ~ '»') }}
+      </div>
+    </section>
+
+    <section class="card p-6">
+      <h2 class="mb-1 text-base font-semibold text-slate-900">Термины</h2>
+      <p class="mb-4 text-sm text-slate-500">Например, для клиники: «Пациенты / Пациент / пациента», для автосервиса сделки можно назвать «Заказы / Заказ / заказ».</p>
+      <div class="space-y-5">
+        <div>
+          <h3 class="mb-2 text-sm font-semibold text-slate-700">Клиенты</h3>
+          <div class="grid gap-4 sm:grid-cols-3">
+            {{ input_field('Множественное число', 'client_pl', form.get('client_pl', ''), 'text', true, 'Клиенты', error=errors.get('client_pl')) }}
+            {{ input_field('Единственное число', 'client_sg', form.get('client_sg', ''), 'text', true, 'Клиент', error=errors.get('client_sg')) }}
+            {{ input_field('Винительный падеж', 'client_acc', form.get('client_acc', ''), 'text', true, 'клиента', error=errors.get('client_acc'), help='«Добавить …»') }}
+          </div>
+        </div>
+        <div>
+          <h3 class="mb-2 text-sm font-semibold text-slate-700">Сделки</h3>
+          <div class="grid gap-4 sm:grid-cols-3">
+            {{ input_field('Множественное число', 'deal_pl', form.get('deal_pl', ''), 'text', true, 'Сделки', error=errors.get('deal_pl')) }}
+            {{ input_field('Единственное число', 'deal_sg', form.get('deal_sg', ''), 'text', true, 'Сделка', error=errors.get('deal_sg')) }}
+            {{ input_field('Винительный падеж', 'deal_acc', form.get('deal_acc', ''), 'text', true, 'сделку', error=errors.get('deal_acc'), help='«Добавить …»') }}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="flex items-center gap-3">
+      <button type="submit" class="btn btn-primary">Сохранить</button>
+    </div>
+  </form>
+  <form method="post" action="/settings/general/reset" class="mt-3" data-confirm="Вернуть название, валюту и термины к значениям по умолчанию?">
+    <button type="submit" class="text-sm text-slate-500 underline hover:text-slate-700">Сбросить к значениям по умолчанию</button>
+  </form>
+</div>
+{% endblock %}

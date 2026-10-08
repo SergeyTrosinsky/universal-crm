@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import field as input_field, select_field, checkbox, error_box %}
+{% set editing = item is not none %}
+{% block title %}{{ 'Изменение статуса' if editing else 'Новый статус' }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl">
+  <a href="/settings/statuses" class="text-sm text-slate-500 hover:text-slate-700">&larr; К списку статусов</a>
+  <h1 class="mb-6 mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ item.name if editing else 'Новый статус' }}</h1>
+
+  <form method="post" action="{{ '/settings/statuses/%d/edit' % item.id if editing else '/settings/statuses/new' }}" class="card space-y-5 p-6">
+    {{ error_box(errors.get('__all__')) }}
+    {{ input_field('Название', 'name', form.get('name', ''), 'text', true, 'Например, В ремонте', error=errors.get('name')) }}
+
+    <div>
+      <label for="color" class="label">Цвет</label>
+      <div class="flex items-center gap-3">
+        <input id="color" name="color" type="color" value="{{ form.get('color', '#6B7280') }}"
+               class="h-10 w-16 cursor-pointer rounded-lg border-0 bg-white p-1 ring-1 ring-inset ring-slate-300">
+        <span class="text-xs text-slate-500">Используется в списках и карточках сделок.</span>
+      </div>
+      {% if errors.get('color') %}<p class="mt-1 text-xs text-rose-600">{{ errors.get('color') }}</p>{% endif %}
+    </div>
+
+    {{ select_field('Тип', 'kind', status_kind_labels.items(), form.get('kind', 'open'), true, error=errors.get('kind'),
+                    help='Определяет учёт в статистике: открытая / выигранная / проигранная. При смене типа дата закрытия у новых переходов ставится автоматически.') }}
+
+    <fieldset class="space-y-3">
+      <legend class="label">Параметры</legend>
+      {{ checkbox('Основной статус', 'is_default', form.get('is_default'), 'Назначается новым записям. Основным может быть только один активный статус.') }}
+      {{ checkbox('Активен', 'is_active', form.get('is_active'), 'Отключённый статус нельзя выбрать заново; существующие записи не затрагиваются.') }}
+      {% for key in ('is_default', 'is_active') %}{% if errors.get(key) %}<p class="text-xs text-rose-600">{{ errors.get(key) }}</p>{% endif %}{% endfor %}
+    </fieldset>
+
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit" class="btn btn-primary">{{ 'Сохранить' if editing else 'Создать' }}</button>
+      <a href="/settings/statuses" class="btn btn-secondary">Отмена</a>
+    </div>
+  </form>
+
+  {% if editing %}
+  <div class="card mt-6 p-6">
+    <h2 class="text-base font-semibold text-slate-900">Удаление</h2>
+    {% if deals_count %}
+      <p class="mt-1 text-sm text-slate-500">Статус используется ({{ ui.deal.pl | lower }}: {{ deals_count }}), поэтому удалить его нельзя. Отключите статус, чтобы убрать его из выбора.</p>
+    {% else %}
+      <p class="mt-1 text-sm text-slate-500">Этот статус пока никем не используется.</p>
+      <form method="post" action="/settings/statuses/{{ item.id }}/delete" class="mt-4" data-confirm="Удалить статус «{{ item.name }}»?">
+        <button type="submit" class="btn btn-danger">Удалить статус</button>
+      </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import error_box %}
+{% set label = ui.client.pl if kind == 'clients' else ui.deal.pl %}
+{% block title %}Импорт: {{ label }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <a href="/{{ kind }}" class="text-sm text-slate-500 hover:text-slate-900">&larr; {{ label }}</a>
+  <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Загрузка из файла: {{ label | lower }}</h1>
+  <p class="mt-1 max-w-2xl text-sm text-slate-500">
+    Подойдут файлы Excel (.xlsx) и CSV. Сначала вы увидите проверку с ошибками по строкам, и только после подтверждения записи попадут в CRM.
+  </p>
+</div>
+
+{{ error_box(error) }}
+
+<div class="grid gap-6 lg:grid-cols-2">
+  <section class="card p-6">
+    <h2 class="text-base font-semibold text-slate-900">1. Скачайте шаблон</h2>
+    <p class="mt-1 text-sm text-slate-500">
+      Заголовки в шаблоне совпадают с вашими полями, включая добавленные в настройках.
+      Порядок колонок не важен, ненужные можно удалить. В Excel-шаблоне есть лист «Подсказки» и выпадающие списки.
+    </p>
+    {% if kind == 'deals' %}
+    <p class="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-inset ring-amber-200">
+      {{ ui.client.sg }} находится по телефону или email, поэтому он уже должен быть в CRM. Сначала загрузите {{ ui.client.pl | lower }}.
+      Поля шаблона заполняйте только у записей с этим шаблоном (колонка «Шаблон»).
+    </p>
+    {% endif %}
+    <div class="mt-4 flex flex-wrap gap-2">
+      <a href="/import/{{ kind }}/template?format=xlsx" class="btn btn-secondary">Шаблон Excel (.xlsx)</a>
+      <a href="/import/{{ kind }}/template?format=csv" class="btn btn-secondary">Шаблон CSV</a>
+    </div>
+    <p class="mt-3 text-xs text-slate-400">Совет: «Выгрузить» из списка даёт файл в том же формате, его можно поправить и загрузить обратно.</p>
+  </section>
+
+  <section class="card p-6">
+    <h2 class="text-base font-semibold text-slate-900">2. Загрузите заполненный файл</h2>
+    <form method="post" action="/import/{{ kind }}" enctype="multipart/form-data" class="mt-4 space-y-4">
+      <div>
+        <label for="file" class="label">Файл</label>
+        <input id="file" name="file" type="file" required accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+               class="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100">
+        <p class="mt-1 text-xs text-slate-500">До {{ max_mb }} МБ и {{ max_rows }} строк. Заголовки — в первой строке.</p>
+      </div>
+      {% if kind == 'clients' %}
+      <fieldset>
+        <legend class="label">Если {{ ui.client.sg | lower }} уже есть в CRM (совпал email или телефон)</legend>
+        <div class="mt-1 space-y-2 text-sm text-slate-700">
+          <label class="flex items-start gap-2"><input type="radio" name="duplicates" value="skip" checked class="mt-0.5 text-indigo-600 focus:ring-indigo-500"><span>Пропустить строку<span class="block text-xs text-slate-500">Существующие записи не меняются.</span></span></label>
+          <label class="flex items-start gap-2"><input type="radio" name="duplicates" value="update" class="mt-0.5 text-indigo-600 focus:ring-indigo-500"><span>Обновить данные<span class="block text-xs text-slate-500">Заполненные ячейки заменят старые значения, пустые ничего не сотрут.</span></span></label>
+        </div>
+      </fieldset>
+      {% else %}
+      <fieldset>
+        <legend class="label">Если такая запись уже есть в CRM (совпали клиент, название, сумма и дата)</legend>
+        <div class="mt-1 space-y-2 text-sm text-slate-700">
+          <label class="flex items-start gap-2"><input type="radio" name="duplicates" value="skip" checked class="mt-0.5 text-indigo-600 focus:ring-indigo-500"><span>Пропустить строку<span class="block text-xs text-slate-500">Защита от двойной загрузки одного и того же файла.</span></span></label>
+          <label class="flex items-start gap-2"><input type="radio" name="duplicates" value="allow" class="mt-0.5 text-indigo-600 focus:ring-indigo-500"><span>Загрузить всё равно<span class="block text-xs text-slate-500">Для случаев, когда одинаковые записи в файле — это разные записи.</span></span></label>
+        </div>
+      </fieldset>
+      {% endif %}
+      <button type="submit" class="btn btn-primary">Проверить файл</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% if flashes %}
+<div class="mb-6 space-y-2" data-flash-container>
+  {% for f in flashes %}
+    {% set styles = {
+      'success': 'bg-emerald-50 text-emerald-800 ring-emerald-200',
+      'error': 'bg-rose-50 text-rose-800 ring-rose-200',
+      'info': 'bg-sky-50 text-sky-800 ring-sky-200'
+    } %}
+    <div role="{{ 'alert' if f.category == 'error' else 'status' }}"
+         class="flex items-start justify-between gap-3 rounded-lg px-4 py-3 text-sm ring-1 ring-inset {{ styles.get(f.category, styles['info']) }}"
+         data-flash data-category="{{ f.category }}">
+      <span>{{ f.message }}</span>
+      <button type="button" class="-mr-1 rounded p-1 opacity-60 hover:opacity-100" data-dismiss aria-label="Закрыть">&times;</button>
+    </div>
+  {% endfor %}
+</div>
+{% endif %}

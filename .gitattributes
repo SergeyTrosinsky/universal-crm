@@ -1,0 +1,4 @@
+# Скрипты запускаются в Linux-контейнерах — всегда переводы строк LF
+*.sh text eol=lf
+Dockerfile text eol=lf
+Caddyfile text eol=lf
