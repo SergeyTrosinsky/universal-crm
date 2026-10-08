@@ -33,6 +33,8 @@ function Show-Status {
         & git status -sb
         Say "`nПоследняя сохранённая версия:" Cyan
         & git log -1 --format='%h  %ad  %s' --date=format:'%d.%m.%Y %H:%M'
+        $ahead = (& git rev-list --count 'origin/main..HEAD' 2>$null)
+        if ($LASTEXITCODE -eq 0 -and $ahead -ne '0') { Say "Не отправлено на GitHub версий: $ahead (пункт 3)." Yellow }
     }
     if (Require-Docker) {
         Say "`n--- Docker: контейнеры ---" Cyan
@@ -46,7 +48,7 @@ function Show-History {
     & git log -20 --format='%h  %ad  %s' --date=format:'%d.%m.%Y %H:%M'
 }
 
-function Save-And-Push {
+function Save-Version {
     if (-not (Require-Git)) { return }
     # защита: секреты и данные не должны попадать в git
     & git add -A
@@ -58,17 +60,25 @@ function Save-And-Push {
         Say 'Ничего не сохранено. Добавьте эти файлы в .gitignore.' Yellow
         return
     }
-    if (-not (& git diff --cached --name-only)) { Say 'Новых изменений нет — сохранять нечего.' Yellow }
-    else {
-        & git diff --cached --stat
-        $msg = Read-Host "`nКоротко опишите, что изменилось (пусто — отмена)"
-        if ([string]::IsNullOrWhiteSpace($msg)) { & git reset -q; Say 'Отменено.' Yellow; return }
-        & git commit -m $msg
-        if ($LASTEXITCODE -ne 0) { Say 'Не удалось создать версию.' Red; return }
-    }
-    Say "`nОтправляю на GitHub..." Cyan
+    if (-not (& git diff --cached --name-only)) { Say 'Новых изменений нет — сохранять нечего.' Yellow; return }
+    & git diff --cached --stat
+    $msg = Read-Host "`
+Коротко опишите, что изменилось (пусто — отмена)"
+    if ([string]::IsNullOrWhiteSpace($msg)) { & git reset -q; Say 'Отменено.' Yellow; return }
+    & git commit -m $msg
+    if ($LASTEXITCODE -eq 0) {
+        Say 'Версия сохранена на этом компьютере (на GitHub не отправлена; отправка — пункт 3).' Green
+    } else { Say 'Не удалось создать версию.' Red }
+}
+
+function Push-Github {
+    if (-not (Require-Git)) { return }
+    if (Tree-Dirty) { Say 'Есть несохранённые изменения — они на GitHub не попадут. Сначала пункт 2.' Yellow }
+    $n = (& git rev-list --count 'origin/main..HEAD' 2>$null)
+    if ($LASTEXITCODE -eq 0 -and $n -eq '0') { Say 'Все сохранённые версии уже на GitHub.' Green; return }
+    Say "Отправляю на GitHub (версий к отправке: $n)..." Cyan
     & git push -u origin main
-    if ($LASTEXITCODE -eq 0) { Say 'Готово: версия на GitHub.' Green } else { Say 'Отправка не удалась (см. выше). Версия сохранена локально.' Red }
+    if ($LASTEXITCODE -eq 0) { Say 'Готово: версии на GitHub.' Green } else { Say 'Отправка не удалась (см. выше). Версии сохранены локально.' Red }
 }
 
 function Rollback-Code {
@@ -92,7 +102,7 @@ function Rollback-Code {
         return
     }
     & git commit -m "Откат к версии $hash" | Out-Null
-    Say "Готово: файлы возвращены к версии $hash. Чтобы отправить на GitHub — пункт 2/«Отправить»." Green
+    Say "Готово: файлы возвращены к версии $hash. Чтобы отправить на GitHub — пункт 3." Green
     Say 'Чтобы применить к запущенному приложению: пункт «Пересобрать и обновить контейнеры».' Cyan
 }
 
@@ -153,32 +163,34 @@ while ($true) {
     Say '=============== Universal CRM — администрирование ===============' Cyan
     Say ' Версии кода (git / GitHub)'
     Say '   1) Состояние: что изменилось, какие контейнеры работают'
-    Say '   2) Сохранить версию и отправить на GitHub'
-    Say '   3) История версий'
-    Say '   4) Откатить код к прошлой версии'
+    Say '   2) Сохранить версию (только на этом компьютере)'
+    Say '   3) Отправить сохранённые версии на GitHub'
+    Say '   4) История версий'
+    Say '   5) Откатить код к прошлой версии'
     Say ' База данных'
-    Say '   5) Сделать резервную копию базы сейчас'
-    Say '   6) Восстановить базу из копии'
+    Say '   6) Сделать резервную копию базы сейчас'
+    Say '   7) Восстановить базу из копии'
     Say ' Приложение'
-    Say '   7) Запустить контейнеры      8) Остановить контейнеры'
-    Say '   9) Пересобрать и обновить контейнеры (после изменения кода)'
-    Say '  10) Журнал приложения        11) Запустить тесты'
+    Say '   8) Запустить контейнеры      9) Остановить контейнеры'
+    Say '  10) Пересобрать и обновить контейнеры (после изменения кода)'
+    Say '  11) Журнал приложения        12) Запустить тесты'
     Say '   0) Выход'
     Say '=================================================================' Cyan
     $c = (Read-Host 'Выберите пункт').Trim()
     Write-Host ''
     switch ($c) {
         '1'  { Show-Status; Pause-Menu }
-        '2'  { Save-And-Push; Pause-Menu }
-        '3'  { Show-History; Pause-Menu }
-        '4'  { Rollback-Code; Pause-Menu }
-        '5'  { Backup-Db | Out-Null; Pause-Menu }
-        '6'  { Restore-Db; Pause-Menu }
-        '7'  { Start-All; Pause-Menu }
-        '8'  { Stop-All; Pause-Menu }
-        '9'  { Rebuild; Pause-Menu }
-        '10' { Show-Logs; Pause-Menu }
-        '11' { Run-Tests; Pause-Menu }
+        '2'  { Save-Version; Pause-Menu }
+        '3'  { Push-Github; Pause-Menu }
+        '4'  { Show-History; Pause-Menu }
+        '5'  { Rollback-Code; Pause-Menu }
+        '6'  { Backup-Db | Out-Null; Pause-Menu }
+        '7'  { Restore-Db; Pause-Menu }
+        '8'  { Start-All; Pause-Menu }
+        '9'  { Stop-All; Pause-Menu }
+        '10' { Rebuild; Pause-Menu }
+        '11' { Show-Logs; Pause-Menu }
+        '12' { Run-Tests; Pause-Menu }
         '0'  { exit 0 }
         default { }
     }
