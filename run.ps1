@@ -41,11 +41,44 @@ if (-not $cloudflared) {
                       "затем закройте это окно и запустите run.bat снова.")
 }
 
-# ---------------------------------------------------------------- 1. Docker Desktop запущен?
-& docker info *> $null
-if ($LASTEXITCODE -ne 0) {
-    Stop-WithMessage ("Docker Desktop не запущен (или ещё не успел запуститься).`n" +
-                      "Запустите Docker Desktop, дождитесь зелёного значка «Engine running» и повторите запуск.")
+# ---------------------------------------------------------------- 1. Docker Desktop запущен? Если нет — запускаем сами
+$DockerStartTimeout = 240   # сек: Docker Desktop стартует долго, особенно после включения компьютера
+
+function Test-DockerEngine {
+    $old = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'   # у docker stderr при перенаправлении в PowerShell 5.1 не должен становиться ошибкой
+    try { & docker info 2>&1 | Out-Null; return ($LASTEXITCODE -eq 0) } finally { $ErrorActionPreference = $old }
+}
+
+if (-not (Test-DockerEngine)) {
+    $candidates = @(
+        (Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'),
+        (Join-Path ${env:ProgramFiles(x86)} 'Docker\Docker\Docker Desktop.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\Docker\Docker\Docker Desktop.exe')
+    )
+    $dockerExe = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+    if (-not $dockerExe) {
+        Stop-WithMessage ("Docker Desktop не запущен, и я не нашёл его для автозапуска.`n" +
+                          "Запустите Docker Desktop вручную и повторите запуск.")
+    }
+    if (-not (Get-Process -Name 'Docker Desktop' -ErrorAction SilentlyContinue)) {
+        Write-Host 'Docker Desktop не запущен — запускаю...' -ForegroundColor Cyan
+        Start-Process -FilePath $dockerExe
+    } else {
+        Write-Host 'Docker Desktop запускается, жду готовности движка...' -ForegroundColor Cyan
+    }
+    $deadline = (Get-Date).AddSeconds($DockerStartTimeout)
+    $up = $false
+    while ((Get-Date) -lt $deadline) {
+        if (Test-DockerEngine) { $up = $true; break }
+        Write-Host '.' -NoNewline -ForegroundColor DarkGray
+        Start-Sleep -Seconds 3
+    }
+    Write-Host ''
+    if (-not $up) {
+        Stop-WithMessage ("Docker не стал готов за $DockerStartTimeout с.`n" +
+                          "Откройте Docker Desktop, дождитесь «Engine running» (при первом запуске может потребоваться принять условия) и повторите.")
+    }
 }
 Write-Host 'Docker работает.' -ForegroundColor Green
 
@@ -131,6 +164,7 @@ finally {
     Write-Host ''
     Write-Host 'Останавливаю туннель и сервер...' -ForegroundColor Cyan
     if ($tunnel -and -not $tunnel.HasExited) { Stop-Process -Id $tunnel.Id -Force -ErrorAction SilentlyContinue }
+    $ErrorActionPreference = 'Continue'
     & docker compose --env-file $EnvFile stop 2>&1 | Out-Null   # stop, а не down: данные и тома остаются
     Write-Host 'Остановлено. Данные сохранены.' -ForegroundColor Green
 }
