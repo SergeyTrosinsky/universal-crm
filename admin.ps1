@@ -107,10 +107,10 @@ function Rollback-Code {
 }
 
 # ---------------------------------------------------------------- резервные копии базы
-function Backup-Db {
+function Backup-Db([string]$Prefix = 'crm_manual') {
     if (-not (Require-Docker)) { return $null }
     $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-    $name = "crm_manual_$stamp.dump"
+    $name = "${Prefix}_$stamp.dump"
     New-Item -ItemType Directory -Force -Path 'backups' | Out-Null
     # pg_dump запускается в сервисе backup: папка backups у него смонтирована, файл сразу попадает на диск
     Compose exec -T backup sh -c "pg_dump --format=custom --file=/backups/$name && pg_restore --list /backups/$name > /dev/null" | Out-Host
@@ -145,6 +145,20 @@ function Restore-Db {
     if ($ok) { Say 'Готово: база восстановлена.' Green } else { Say 'Ошибка восстановления. Страховочная копия лежит в backups\ (crm_manual_*).' Red }
 }
 
+function Load-Demo {
+    if (-not (Require-Docker)) { return }
+    Say 'Демо-сценарий «Континент» ЗАМЕНИТ все данные CRM: пользователей, клиентов, сделки, задачи, поля, шаблоны.' Red
+    Say 'Перед этим будет создана копия текущей базы (crm_before_demo_*.dump), из неё можно вернуться пунктом 7.' Yellow
+    if ((Read-Host 'Продолжить? Введите yes') -ne 'yes') { Say 'Отменено.' Yellow; return }
+    $vin = (Read-Host 'Сразу создать поля «VIN» и «Госномер»? (для скриншотов; для записи видео — нет) [y/N]').Trim().ToLower()
+    if (-not (Backup-Db 'crm_before_demo')) { Say 'Копия не создана — загрузка демо остановлена.' Red; return }
+    $extra = @()
+    if ($vin -eq 'y') { $extra += '--with-vin' }
+    Compose exec -T app python -m app.cli seed-showcase --yes @extra
+    if ($LASTEXITCODE -eq 0) { Say "`nГотово. Откройте CRM и войдите под director@kontinent.demo (пароль выше). Сценарий съёмки: DEMO_SCRIPT.md" Green }
+    else { Say 'Загрузка демо не удалась (см. вывод выше). Данные можно вернуть пунктом 7.' Red }
+}
+
 # ---------------------------------------------------------------- запуск, остановка, тесты
 function Rebuild {
     if (Require-Docker) { Compose up -d --build; if ($LASTEXITCODE -eq 0) { Say 'Контейнеры обновлены (миграции применились при старте).' Green } }
@@ -174,6 +188,8 @@ while ($true) {
     Say '   8) Запустить контейнеры      9) Остановить контейнеры'
     Say '  10) Пересобрать и обновить контейнеры (после изменения кода)'
     Say '  11) Журнал приложения        12) Запустить тесты'
+    Say ' Демонстрация'
+    Say '  13) Загрузить демо-сценарий «Континент» (заменит данные, с копией перед этим)'
     Say '   0) Выход'
     Say '=================================================================' Cyan
     $c = (Read-Host 'Выберите пункт').Trim()
@@ -191,6 +207,7 @@ while ($true) {
         '10' { Rebuild; Pause-Menu }
         '11' { Show-Logs; Pause-Menu }
         '12' { Run-Tests; Pause-Menu }
+        '13' { Load-Demo; Pause-Menu }
         '0'  { exit 0 }
         default { }
     }
