@@ -160,12 +160,15 @@ VIN, Госномер). При добавлении записи вверху ф
 
 ## Docker: запуск на сервере
 
+Пошаговая инструкция для нового сервера (в т. ч. домен, HTTPS, копии вне сервера): **[DEPLOY.md](DEPLOY.md)**;
+быстрый запуск — `bash docker/setup.sh`, обновление — `bash docker/update.sh`.
+
 В комплекте: `Dockerfile` (приложение), `docker-compose.yml` (приложение + PostgreSQL + автоматические
 резервные копии + по желанию HTTPS через Caddy). Миграции применяются сами при каждом старте контейнера.
 
 **Первый запуск** (на сервере с Docker и Docker Compose):
 ```bash
-cp .env.docker.example .env.docker
+cp docker/env.example .env.docker
 # заполните POSTGRES_PASSWORD и SECRET_KEY (openssl rand -hex 24 / -hex 32), пароль первого администратора
 docker compose --env-file .env.docker up -d --build
 docker compose --env-file .env.docker logs -f app        # дождитесь «Запускаю сервер»
