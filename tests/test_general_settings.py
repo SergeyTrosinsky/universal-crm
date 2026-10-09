@@ -106,3 +106,14 @@ def test_default_value_is_not_stored(factory):
         from app.models import AppSetting
 
         assert s.scalar(select(AppSetting).where(~AppSetting.key.startswith("_"))) is None
+
+
+def test_roles_page_uses_renamed_terms(client, make_user):
+    make_user("admin@example.com", role="admin")
+    web_login(client, "admin@example.com")
+    client.patch("/api/v1/settings/general", json={"deal_pl": "Заказы", "deal_sg": "Заказ", "deal_acc": "заказ"})
+    page = client.get("/settings/roles").text
+    assert "Заказы: Просмотр" in page
+    assert "Сделки: Просмотр" not in page
+    form = client.get("/settings/roles/new").text
+    assert "Заказы всех сотрудников" in form and "Сделки всех сотрудников" not in form

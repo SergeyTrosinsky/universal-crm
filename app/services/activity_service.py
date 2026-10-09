@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from app.core.labels import CURRENCIES
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -75,7 +77,7 @@ def deal_snapshot(db: Session, deal: Deal, fields: Iterable[CustomField]) -> Sna
     status = db.get(Status, deal.status_id) if deal.status_id else None
     client = db.get(Client, deal.client_id) if deal.client_id else None
     template = db.get(DealTemplate, deal.template_id) if deal.template_id else None
-    amount = f"{eav_service.format_number(deal.amount)} {deal.currency}" if deal.amount is not None else EMPTY
+    amount = f"{eav_service.format_number(deal.amount)} {CURRENCIES.get(deal.currency, deal.currency)}" if deal.amount is not None else EMPTY
     snap: Snapshot = {
         "title": ("Название", _text(deal.title)),
         "status": ("Статус", status.name if status else EMPTY),

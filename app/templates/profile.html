@@ -39,7 +39,7 @@
     {% elif user.role.permissions %}
       <ul class="flex flex-wrap gap-2">
         {% for p in user.role.permissions %}
-          <li class="badge bg-slate-100 text-slate-700">{{ permission_labels.get(p, p) }}</li>
+          <li class="badge bg-slate-100 text-slate-700">{{ permission_labels.get(p, p) | terms }}</li>
         {% endfor %}
       </ul>
     {% else %}

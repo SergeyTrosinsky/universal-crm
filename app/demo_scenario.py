@@ -366,6 +366,14 @@ class _Clock:
     def clamp(self, moment: datetime) -> datetime:
         return min(moment, self.now - timedelta(minutes=1))
 
+    def workday(self, moment: datetime, after: datetime | None = None) -> datetime:
+        """Переносит момент на рабочее время того же дня (11–17 по Москве), не раньше `after` + 20 минут."""
+        self._tick += 1
+        snapped = moment.replace(hour=8 + (self._tick * 5) % 6, minute=(self._tick * 23) % 60, second=0)
+        if after is not None and snapped <= after:
+            snapped = after + timedelta(minutes=20 + self._tick % 25)
+        return self.clamp(snapped)
+
 
 def reset_business_data(db: Session) -> None:
     """Удаляет пользователей, клиентов, сделки, задачи, поля, шаблоны, свои роли и общие настройки."""
@@ -486,7 +494,7 @@ def create_clients(
         for author, text in spec.notes:
             client = db.get(Client, client.id)
             activity_service.add_note(db, client, author=users[author], body=text)
-            stamper.stamp(clock.clamp(created + timedelta(hours=step)))
+            stamper.stamp(clock.workday(created + timedelta(hours=step), after=created))
             step += 3
         for days_ago, change, who in spec.updates:
             client = db.get(Client, client.id)
@@ -540,7 +548,7 @@ def create_deals(
 
         last = start
         for index, (frac, _, kind, payload) in enumerate(steps):
-            when = clock.clamp(start + timedelta(days=spec.span * frac, minutes=3 * (index + 1)))
+            when = clock.workday(start + timedelta(days=spec.span * frac), after=last)
             when = max(when, last)
             last = when
             deal = db.get(Deal, deal_id)

@@ -1,4 +1,5 @@
 """Jinja2: окружение, фильтры, флеш-сообщения и общий render()."""
+
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -7,6 +8,7 @@ from urllib.parse import urlencode
 from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from jinja2 import pass_context
 
 from app.core import csrf
 from app.core.config import get_settings
@@ -101,6 +103,15 @@ templates.env.globals.update(
 templates.env.filters["dt"] = format_dt
 templates.env.filters["date"] = format_date
 templates.env.filters["money"] = money
+
+
+@pass_context
+def apply_terms(context, text):
+    ui = context.get("ui") or settings_service.ui(None)
+    return str(text).replace("Клиенты", ui["client"]["pl"]).replace("Сделки", ui["deal"]["pl"])
+
+
+templates.env.filters["terms"] = apply_terms
 
 
 def flash(request: Request, message: str, category: str = "success") -> None:

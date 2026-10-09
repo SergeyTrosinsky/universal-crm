@@ -229,3 +229,12 @@ def test_import_update_is_logged(client, make_user):
     labels = {c["label"] for e in events for c in (e["changes"] or [])}
     assert {"Имя / название", "Email"} <= labels
     assert events[0]["author"] == "Админ"
+
+
+def test_amount_in_history_uses_currency_symbol(client, make_user):
+    admin(client, make_user)
+    cid = client.post("/api/v1/clients", json={"name": "Иван"}).json()["id"]
+    deal = client.post("/api/v1/deals", json={"title": "Д", "client_id": cid, "amount": "100"}).json()
+    client.patch(f"/api/v1/deals/{deal['id']}", json={"amount": "250"})
+    flat = " ".join(str(i.get("changes")) for i in activity(client, "deals", deal["id"]))
+    assert "₽" in flat and "RUB" not in flat

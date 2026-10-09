@@ -30,7 +30,7 @@
       {% if '*' in r.permissions %}
         <span class="badge bg-indigo-50 text-indigo-700">Полный доступ</span>
       {% else %}
-        {% for p in r.permissions %}<span class="badge bg-slate-100 text-slate-700">{{ permission_labels.get(p, p) }}</span>{% else %}
+        {% for p in r.permissions %}<span class="badge bg-slate-100 text-slate-700">{{ permission_labels.get(p, p) | terms }}</span>{% else %}
         <span class="text-sm text-slate-400">Нет прав</span>{% endfor %}
       {% endif %}
     </div>
