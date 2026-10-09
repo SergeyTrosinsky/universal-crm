@@ -5,19 +5,18 @@ CLIENTS_DELETE = "clients:delete"
 DEALS_READ = "deals:read"
 DEALS_WRITE = "deals:write"
 DEALS_DELETE = "deals:delete"
-DEALS_READ_ALL = "deals:read_all"      # видеть сделки других сотрудников (иначе — только свои)
-DEALS_ASSIGN = "deals:assign"          # назначать ответственного
+DEALS_READ_ALL = "deals:read_all"
+DEALS_ASSIGN = "deals:assign"
 TASKS_READ = "tasks:read"
 TASKS_WRITE = "tasks:write"
-TASKS_READ_ALL = "tasks:read_all"      # видеть задачи других сотрудников
-TASKS_ASSIGN = "tasks:assign"          # ставить задачи другим сотрудникам
+TASKS_READ_ALL = "tasks:read_all"
+TASKS_ASSIGN = "tasks:assign"
 DASHBOARD_READ = "dashboard:read"
-USERS_MANAGE = "users:manage"          # пользователи и роли
-SETTINGS_MANAGE = "settings:manage"    # кастомные поля и статусы
+USERS_MANAGE = "users:manage"
+SETTINGS_MANAGE = "settings:manage"
 
 ALL = "*"
 
-# Для UI редактора ролей: (название группы, [(право, подпись), ...])
 PERMISSION_GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
     ("Клиенты", [
         (CLIENTS_READ, "Просмотр"),

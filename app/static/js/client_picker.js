@@ -1,5 +1,3 @@
-// Выбор связанной записи с живым поиском (клиент, сделка).
-// <div data-client-picker data-search-url="/clients/search"> … [data-picker-input] [data-picker-value] [data-picker-list]
 (function () {
   'use strict';
 

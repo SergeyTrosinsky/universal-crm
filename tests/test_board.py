@@ -60,7 +60,7 @@ def test_board_groups_deals_by_status(client, make_user):
     assert "Рабочая сделка" in column(html, st["in_progress"]["id"])
     assert "Выигранная сделка" in column(html, st["won"]["id"])
     assert 'draggable="true"' in html and "/static/js/board.js" in html
-    assert "250,50" in column(html, st["in_progress"]["id"])  # сумма колонки
+    assert "250,50" in column(html, st["in_progress"]["id"])
 
 
 def test_board_reflects_status_change(client, make_user):
@@ -94,13 +94,13 @@ def test_board_inactive_status_only_when_it_has_deals(client, make_user):
     work_id = st["in_progress"]["id"]
 
     client.patch(f"/api/v1/statuses/{work_id}", json={"is_active": False})
-    assert f'data-status-id="{work_id}"' not in client.get("/deals/board").text  # пустой отключённый — скрыт
+    assert f'data-status-id="{work_id}"' not in client.get("/deals/board").text
 
     client.patch(f"/api/v1/statuses/{work_id}", json={"is_active": True})
     deal = mk_deal(client, c, "Остаток", status_id=work_id)
     client.patch(f"/api/v1/statuses/{work_id}", json={"is_active": False})
     html = client.get("/deals/board").text
-    assert "Остаток" in column(html, work_id) and "(откл.)" in html  # с делами — виден, помечен
+    assert "Остаток" in column(html, work_id) and "(откл.)" in html
     assert deal["id"]
 
 
@@ -123,13 +123,10 @@ def test_board_service_limits_and_counts(factory, make_user):
         first = next(c for c in cols if c["status"].code == "new")
         assert first["count"] == 5 and len(first["deals"]) == 2 and first["hidden"] == 3
         assert first["totals"] == [("RUB", Decimal("50"))]
-        # отключённый статус с делами остаётся в доске
         new.is_active = False
         s.commit()
         assert any(c["status"].code == "new" for c in deal_service.board(s))
-        # фильтр по ответственному
         assert next(c for c in deal_service.board(s, responsible_id=user.id) if c["status"].code == "new")["count"] == 5
-        # при фильтре без совпадений пустая колонка отключённого статуса не показывается
         assert not any(c["status"].code == "new" for c in deal_service.board(s, responsible_id=9999))
 
 

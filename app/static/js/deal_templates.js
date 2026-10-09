@@ -1,5 +1,3 @@
-// Форма сделки: при выборе шаблона показываются общие поля и поля этого шаблона.
-// Скрытые поля отключаются (disabled), поэтому в запрос не попадают.
 (function () {
   'use strict';
   var select = document.getElementById('template_id');

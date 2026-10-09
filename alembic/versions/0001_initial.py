@@ -18,7 +18,6 @@ JSONType = sa.JSON().with_variant(JSONB(), "postgresql")
 
 
 def _enum(name: str, *values: str) -> sa.Enum:
-    # как app.db.types.str_enum: VARCHAR без нативного ENUM
     return sa.Enum(*values, name=name, native_enum=False, length=32, validate_strings=True)
 
 

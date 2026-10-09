@@ -3,7 +3,7 @@ from logging.config import fileConfig
 
 from alembic import context
 
-import app.models  # noqa: F401  — регистрирует все таблицы в Base.metadata
+import app.models  # noqa: F401
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import build_engine
@@ -19,7 +19,6 @@ def _configure(**kwargs) -> None:
     context.configure(
         target_metadata=target_metadata,
         compare_type=True,
-        # SQLite не умеет большинство ALTER — Alembic пересоздаёт таблицу «пакетом»
         render_as_batch=kwargs.pop("is_sqlite", False),
         **kwargs,
     )
@@ -33,7 +32,6 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    # Тесты и скрипты могут передать готовое соединение: config.attributes["connection"]
     connection = config.attributes.get("connection")
     if connection is not None:
         _configure(connection=connection, is_sqlite=connection.dialect.name == "sqlite")

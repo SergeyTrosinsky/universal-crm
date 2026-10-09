@@ -145,7 +145,7 @@ def update_status(db: Session, status: Status, **changes) -> Status:
         others_active = [s for s in list_statuses(db, only_active=True) if s.id != status.id]
         if status.is_active and not others_active:
             errors["is_active"] = "Должен остаться хотя бы один активный статус"
-        final_default = False  # отключённый статус не может быть основным
+        final_default = False
 
     if errors:
         db.rollback()

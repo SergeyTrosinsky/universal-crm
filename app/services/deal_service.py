@@ -31,8 +31,6 @@ SORTS = {
 }
 DEFAULT_SORT = "-date"
 
-# В списке записи идут блоками по шаблонам: сначала стандартные, затем шаблоны в порядке из настроек;
-# выбранная сортировка действует внутри блока.
 TEMPLATE_GROUP_ORDER = (
     Deal.template_id.is_(None).desc(),
     select(func.coalesce(DealTemplate.sort_order, 0)).where(DealTemplate.id == Deal.template_id).correlate(Deal).scalar_subquery(),
@@ -84,7 +82,6 @@ def search_for_picker(db: Session, q: str, limit: int = 10, viewer: User | None 
     return list(db.scalars(stmt))
 
 
-# ------------------------------------------------------------------- список
 def _conditions(
     *,
     q: str | None,
@@ -221,7 +218,6 @@ def list_deals(
     return result
 
 
-# -------------------------------------------------------------------- доска
 BOARD_COLUMN_LIMIT = 50
 
 
@@ -278,7 +274,6 @@ def board(
     return columns
 
 
-# ----------------------------------------------------------------- валидация
 def _apply_status(deal: Deal, status: Status) -> None:
     deal.status = status
     deal.status_id = status.id
@@ -340,7 +335,6 @@ def _clean_base(
         except ValueError as e:
             errors["deal_date"] = str(e)
 
-    # шаблон (набор дополнительных полей)
     if "template_id" in data or creating:
         template_id, template_error = deal_template_service.validate_for_deal(
             db, data.get("template_id"), current_id=current.template_id if current is not None else None
@@ -350,7 +344,6 @@ def _clean_base(
         else:
             out["template_id"] = template_id
 
-    # статус
     if "status_id" in data and not _is_blank(data.get("status_id")):
         try:
             status = status_service.get_status(db, parse_optional_int(data.get("status_id")) or 0)
@@ -361,14 +354,13 @@ def _clean_base(
             errors["status_id"] = "Выберите статус из списка"
         else:
             new_status = status
-    elif creating:  # при создании без статуса берём основной
+    elif creating:
         default = status_service.get_default_status(db)
         if default is None:
             errors["status_id"] = "В системе нет активных статусов — создайте их в настройках"
         else:
             new_status = default
 
-    # клиент
     if "client_id" in data or creating:
         try:
             client_id = parse_optional_int(data.get("client_id"))
@@ -379,9 +371,7 @@ def _clean_base(
         else:
             out["client_id"] = client_id
 
-    # ответственный
     if actor is not None and not actor.can(DEALS_ASSIGN):
-        # без права назначать: ответственный — сам сотрудник (или тот, кто уже назначен)
         allowed = {actor.id} | ({current.responsible_id} if current is not None and current.responsible_id else set())
         if "responsible_id" in data and not _is_blank(data.get("responsible_id")):
             try:
@@ -438,12 +428,10 @@ def _is_blank(value: Any) -> bool:
     return value is None or (isinstance(value, str) and not value.strip())
 
 
-# ---------------------------------------------------------------------- CRUD
 def create_deal(
     db: Session, *, data: Mapping[str, Any], custom: Mapping[str, Any], actor: User, commit: bool = True
 ) -> Deal:
     base, status, errors = _clean_base(db, data, partial=False, actor=actor, creating=True)
-    # поля, доступные выбранному шаблону: общие + свои
     fields = deal_template_service.fields_for_template(active_fields(db), base.get("template_id"))
     clean_custom, custom_errors = eav_service.coerce_values(fields, custom, strict_keys=True)
     errors.update(custom_errors)
@@ -451,10 +439,10 @@ def create_deal(
         raise ValidationFailed(errors)
 
     deal = Deal(**base)
-    _apply_status(deal, status)  # status не None: при ошибке выше уже вышли
+    _apply_status(deal, status)
     db.add(deal)
     eav_service.apply_values(deal, fields, clean_custom)
-    db.flush()  # нужен id сделки для записи в журнал
+    db.flush()
     activity_service.record(db, deal, kind=activity_service.CREATED, actor=actor)
     db.commit() if commit else db.flush()
     return deal

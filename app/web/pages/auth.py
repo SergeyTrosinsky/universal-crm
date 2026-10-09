@@ -8,6 +8,7 @@ from app.core.rate_limit import client_ip, login_limiter, wait_text
 from app.core.security import clear_auth_cookie, create_access_token, set_auth_cookie
 from app.db.session import get_db
 from app.models import User
+from app.services import settings_service
 from app.services.auth_service import authenticate
 from app.web.deps import get_web_user
 from app.web.pages.dashboard import dashboard_page
@@ -27,7 +28,6 @@ def safe_next(url: str | None) -> str:
 def home(request: Request, db: Session = Depends(get_db), user: User = Depends(get_web_user)):
     if user.can("dashboard:read"):
         return dashboard_page(request, db, user)
-    # Нет права на главную: ведём в первый доступный раздел.
     for permission, url in (("clients:read", "/clients"), ("deals:read", "/deals"), ("tasks:read", "/tasks")):
         if user.can(permission):
             return redirect(url, 302)
@@ -38,6 +38,7 @@ def home(request: Request, db: Session = Depends(get_db), user: User = Depends(g
 def login_page(request: Request, next: str = "/", db: Session = Depends(get_db)):
     if resolve_user(db, request.cookies.get(get_settings().AUTH_COOKIE_NAME)):
         return redirect(safe_next(next))
+    request.state.ui = settings_service.ui(db)
     return render(request, "auth/login.html", {"next": safe_next(next), "email": "", "error": None})
 
 
@@ -49,6 +50,7 @@ def login_submit(
     next: str = Form("/"),
     db: Session = Depends(get_db),
 ):
+    request.state.ui = settings_service.ui(db)
     ip = client_ip(request)
     wait = login_limiter.retry_after(email, ip)
     if wait:

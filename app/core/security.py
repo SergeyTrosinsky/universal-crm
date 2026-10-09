@@ -11,12 +11,11 @@ from starlette.responses import Response
 from app.core.config import get_settings
 
 MIN_PASSWORD_LENGTH = 8
-MAX_PASSWORD_BYTES = 72  # ограничение bcrypt
+MAX_PASSWORD_BYTES = 72
 
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-# ---------- пароли ----------
 def validate_password(password: str) -> str:
     """Проверка требований к новому паролю. Бросает ValueError с понятным текстом."""
     if len(password) < MIN_PASSWORD_LENGTH:
@@ -52,7 +51,6 @@ def password_fingerprint(hashed_password: str) -> str:
     return hashlib.sha256(hashed_password.encode("utf-8")).hexdigest()[:16]
 
 
-# ---------- JWT ----------
 @dataclass(frozen=True)
 class TokenData:
     user_id: int
@@ -81,7 +79,6 @@ def decode_access_token(token: str) -> TokenData | None:
         return None
 
 
-# ---------- cookie ----------
 def set_auth_cookie(response: Response, token: str) -> None:
     settings = get_settings()
     response.set_cookie(
@@ -89,7 +86,7 @@ def set_auth_cookie(response: Response, token: str) -> None:
         value=token,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
-        samesite="lax",  # блокирует кросс-сайтовые POST — базовая защита от CSRF
+        samesite="lax",
         secure=settings.AUTH_COOKIE_SECURE,
         path="/",
     )

@@ -10,7 +10,6 @@ from app.services import dashboard_service
 from tests.conftest import PASSWORD, api_login
 
 
-# ------------------------------------------------------------------ вспомогательное
 def login_as(client, make_user, email, role="admin", full_name="Тест"):
     uid = make_user(email, role=role, full_name=full_name)
     client.cookies.clear()
@@ -52,7 +51,6 @@ def future():
     return (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
 
 
-# ------------------------------------------------------------------ API задач
 def test_task_defaults(client, make_user):
     uid = login_as(client, make_user, "admin@example.com")
     t = new_task(client)
@@ -127,7 +125,7 @@ def test_task_lists_views_filters_and_sort(client, make_user):
     assert titles(view="done") == ["Готовая"]
     assert len(titles(view="all")) == 3
     assert titles(status="done") == ["Готовая"]
-    assert titles(q="сидорова") == ["Будущая"]  # поиск по имени клиента, без учёта регистра
+    assert titles(q="сидорова") == ["Будущая"]
     assert titles(priority="urgent") == ["Будущая"]
     assert titles(view="all", sort="priority")[0] == "Будущая"
     assert titles(client_id=c["id"]) == ["Будущая"]
@@ -142,7 +140,6 @@ def test_task_pagination(client, make_user):
     assert data["total"] == 23 and data["pages"] == 3 and len(data["items"]) == 3
 
 
-# ------------------------------------------------------------------ права и видимость
 def test_task_visibility_between_employees(client, make_user):
     a = make_user("a@example.com", role="employee", full_name="Аня")
     b = make_user("b@example.com", role="employee", full_name="Борис")
@@ -150,7 +147,6 @@ def test_task_visibility_between_employees(client, make_user):
 
     api_login(client, "a@example.com")
     mine = new_task(client, title="Задача Ани")
-    # сотрудник не может поставить задачу другому — это делает менеджер
     denied = client.post("/api/v1/tasks", json={"title": "Чужому", "assignee_id": b})
     assert denied.status_code == 422 and "assignee_id" in denied.json()["detail"]
 
@@ -163,17 +159,17 @@ def test_task_visibility_between_employees(client, make_user):
     assert client.get(f"/api/v1/tasks/{mine['id']}").status_code == 404
     assert client.patch(f"/api/v1/tasks/{mine['id']}", json={"title": "x"}).status_code == 404
     assert client.delete(f"/api/v1/tasks/{mine['id']}").status_code == 404
-    assert client.get(f"/api/v1/tasks/{for_b['id']}").status_code == 200  # назначена ему
+    assert client.get(f"/api/v1/tasks/{for_b['id']}").status_code == 200
     seen = {t["title"] for t in client.get("/api/v1/tasks", params={"assignee": "all", "view": "all"}).json()["items"]}
     assert seen == {"Для Бориса"}
 
     client.cookies.clear()
-    api_login(client, "a@example.com")  # чужая задача (даже Борису) Ане не видна
+    api_login(client, "a@example.com")
     seen_a = {t["title"] for t in client.get("/api/v1/tasks", params={"assignee": "all"}).json()["items"]}
     assert seen_a == {"Задача Ани"}
 
     client.cookies.clear()
-    api_login(client, "m@example.com")  # менеджер видит всех
+    api_login(client, "m@example.com")
     all_titles = {t["title"] for t in client.get("/api/v1/tasks", params={"assignee": "all"}).json()["items"]}
     assert all_titles == {"Задача Ани", "Для Бориса"}
     by_user = client.get("/api/v1/tasks", params={"assignee": str(b)}).json()["items"]
@@ -193,7 +189,6 @@ def test_tasks_require_permissions(client, make_user, factory):
     assert client.get("/api/v1/tasks").status_code == 403
 
 
-# ------------------------------------------------------------------ главная (API)
 def test_dashboard_numbers(client, make_user):
     login_as(client, make_user, "admin@example.com")
     c = new_client(client)
@@ -219,7 +214,7 @@ def test_dashboard_numbers(client, make_user):
     assert [(m["currency"], Decimal(m["amount"])) for m in deals["open_amounts"]] == [("RUB", Decimal("1000"))]
     assert deals["won_count"] == 2 and deals["lost_count"] == 1
     won_by_currency = {m["currency"]: Decimal(m["amount"]) for m in deals["won_amounts"]}
-    assert won_by_currency == {"RUB": Decimal("2500.50"), "USD": Decimal("10")}  # валюты не смешиваются
+    assert won_by_currency == {"RUB": Decimal("2500.50"), "USD": Decimal("10")}
     assert deals["conversion"] == 66.7
     assert deals["created"] == 4
     assert sum(s["count"] for s in deals["by_status"]) == 4
@@ -234,7 +229,6 @@ def test_dashboard_period_and_unknown_period(client, make_user, factory):
     won_id = {s["code"]: s["id"] for s in client.get("/api/v1/statuses").json()}["won"]
     d = client.post("/api/v1/deals", json={"title": "Старая", "client_id": c["id"], "amount": "100",
                                            "status_id": won_id}).json()
-    # закрыта давно -> вне периода «7 дней», но внутри «всё время»
     from app.models import Deal
 
     with factory() as s:
@@ -270,7 +264,7 @@ def test_dashboard_sections_follow_permissions(client, make_user, factory):
     api_login(client, "t@example.com")
     d = client.get("/api/v1/dashboard").json()
     assert d["deals"] is None and d["clients"] is None and d["tasks"] is not None
-    assert d["tasks"]["team_overdue"] is None  # нет права видеть чужие задачи
+    assert d["tasks"]["team_overdue"] is None
 
     make_role(factory, "nodash", ["clients:read"])
     make_user("x@example.com", role="nodash")
@@ -279,7 +273,6 @@ def test_dashboard_sections_follow_permissions(client, make_user, factory):
     assert client.get("/api/v1/dashboard").status_code == 403
 
 
-# ------------------------------------------------------------------ веб
 def test_home_shows_dashboard_or_redirects(client, make_user, factory):
     make_user("admin@example.com", role="admin")
     web_login(client, "admin@example.com")
@@ -317,7 +310,7 @@ def test_web_task_flow(client, make_user, factory):
     assert "Подготовить КП" in page.text and "01.05.2030 14:30" in page.text
 
     assert "Подготовить КП" in client.get("/tasks").text
-    assert "Подготовить КП" in client.get(f"/clients/{cl}").text  # блок «Задачи» в карточке клиента
+    assert "Подготовить КП" in client.get(f"/clients/{cl}").text
 
     edit_page = client.get(f"{url}/edit")
     assert 'value="2030-05-01T14:30"' in edit_page.text

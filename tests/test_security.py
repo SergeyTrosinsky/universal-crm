@@ -35,7 +35,6 @@ def web_login_with_token(client, email):
     assert resp.status_code in (302, 303), resp.text[:300]
 
 
-# ------------------------------------------------------------------ CSRF
 def test_login_form_requires_token(client, make_user, csrf_on):
     make_user("a@example.com")
     token = form_token(client.get("/login").text)
@@ -57,7 +56,6 @@ def test_every_post_form_carries_token_and_post_needs_it(client, make_user, csrf
     data = {"type": "person", "name": "Анна"}
     assert client.post("/clients/new", data=data).status_code == 403
     assert client.post("/clients/new", data={**data, "csrf_token": token}).status_code in (302, 303)
-    # изменяющий запрос без токена не должен менять данные (удаление)
     assert client.post("/logout").status_code == 403
     assert client.get("/clients").status_code == 200
 
@@ -69,7 +67,7 @@ def test_token_is_rotated_on_login_and_logout(client, make_user, csrf_on):
     login = client.post("/login", data={"email": "a@example.com", "password": PASSWORD, "csrf_token": before})
     assert login.status_code in (302, 303)
     after = meta_token(client.get("/clients").text)
-    assert after != before  # та же сессия, но токен после входа новый
+    assert after != before
     out = client.post("/logout", data={"csrf_token": after})
     assert out.status_code in (302, 303)
     assert form_token(client.get("/login").text) != after
@@ -77,28 +75,26 @@ def test_token_is_rotated_on_login_and_logout(client, make_user, csrf_on):
 
 def test_api_cookie_auth_needs_header_but_bearer_does_not(client, make_user, csrf_on):
     make_user("admin@example.com", role="admin")
-    bearer = api_login(client, "admin@example.com")  # вход без токена разрешён, ставит cookie
+    bearer = api_login(client, "admin@example.com")
     assert client.post("/api/v1/clients", json={"name": "A"}).status_code == 403
     assert client.delete("/api/v1/clients/1").status_code == 403
 
-    token = meta_token(client.get("/clients").text)  # cookie-вход, страница отдаёт токен
+    token = meta_token(client.get("/clients").text)
     assert client.post("/api/v1/clients", json={"name": "A"}, headers={"X-CSRF-Token": token}).status_code == 201
     assert client.post("/api/v1/clients", json={"name": "B"}, headers={"X-CSRF-Token": "x"}).status_code == 403
-    assert client.get("/api/v1/clients").status_code == 200  # чтение токена не требует
+    assert client.get("/api/v1/clients").status_code == 200
 
     client.cookies.clear()
     created = client.post("/api/v1/clients", json={"name": "C"}, headers={"Authorization": f"Bearer {bearer}"})
-    assert created.status_code == 201  # Bearer браузер сам не подставляет — CSRF невозможен
+    assert created.status_code == 201
 
 
 def test_csrf_can_be_disabled(client, make_user):
-    # по умолчанию в тестах защита выключена (CSRF_ENABLED=false)
     make_user("a@example.com")
     resp = client.post("/login", data={"email": "a@example.com", "password": PASSWORD})
     assert resp.status_code in (302, 303)
 
 
-# ------------------------------------------------------------------ вход: ограничение попыток
 def test_api_login_locks_after_failures(client, make_user, monkeypatch):
     make_user("a@example.com")
     make_user("b@example.com")
@@ -108,7 +104,7 @@ def test_api_login_locks_after_failures(client, make_user, monkeypatch):
     for _ in range(3):
         assert client.post(LOGIN, json=bad).status_code == 401
 
-    blocked = client.post(LOGIN, json={"email": "A@example.com", "password": PASSWORD})  # даже верный пароль
+    blocked = client.post(LOGIN, json={"email": "A@example.com", "password": PASSWORD})
     assert blocked.status_code == 429
     assert int(blocked.headers["Retry-After"]) > 0 and "Слишком много" in blocked.json()["detail"]
     assert client.post(LOGIN, json={"email": "b@example.com", "password": PASSWORD}).status_code == 200
@@ -127,7 +123,7 @@ def test_success_resets_failure_counter(client, make_user, monkeypatch):
         client.post(LOGIN, json=bad)
     assert client.post(LOGIN, json=good).status_code == 200
     for _ in range(2):
-        assert client.post(LOGIN, json=bad).status_code == 401  # счёт начался заново
+        assert client.post(LOGIN, json=bad).status_code == 401
     assert client.post(LOGIN, json=good).status_code == 200
 
 

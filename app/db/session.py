@@ -29,7 +29,6 @@ def build_engine(url: str, echo: bool = False) -> Engine:
     if url.startswith("sqlite"):
         kwargs["connect_args"] = {"check_same_thread": False}
         if url in ("sqlite://", "sqlite:///:memory:"):
-            # In-memory БД живёт ровно в одном соединении — иначе каждый поток увидит пустую базу.
             kwargs["poolclass"] = StaticPool
     engine = create_engine(url, **kwargs)
     if engine.dialect.name == "sqlite":

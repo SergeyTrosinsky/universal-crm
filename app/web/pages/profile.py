@@ -58,6 +58,5 @@ def change_password(
 
     flash(request, "Пароль изменён")
     response = redirect("/profile")
-    # Отпечаток пароля в токене изменился — выдаём новый токен для текущей сессии.
     set_auth_cookie(response, create_access_token(user.id, user.hashed_password))
     return response

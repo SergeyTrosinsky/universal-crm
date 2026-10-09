@@ -11,7 +11,7 @@ class Page(Generic[T]):
     total: int
     page: int
     per_page: int
-    extra: dict = field(default_factory=dict)  # произвольные агрегаты (например, суммы сделок)
+    extra: dict = field(default_factory=dict)
 
     @property
     def pages(self) -> int:

@@ -18,8 +18,8 @@ from app.web.forms import fstr, get_form, optional_int
 from app.web.templating import flash, redirect, render
 
 router = APIRouter()
-PREVIEW_ERROR_ROWS = 200   # сколько строк с ошибками показать в предпросмотре
-PREVIEW_OK_ROWS = 100      # и сколько корректных
+PREVIEW_ERROR_ROWS = 200
+PREVIEW_OK_ROWS = 100
 WRITE_PERMISSION = {ie.CLIENTS: CLIENTS_WRITE, ie.DEALS: DEALS_WRITE}
 LIST_URL = {ie.CLIENTS: "/clients", ie.DEALS: "/deals"}
 
@@ -44,9 +44,6 @@ def _kind_for(kind: str, user: User) -> str:
     return kind
 
 
-# ------------------------------------------------------------------------- экспорт
-# Параметры фильтров читаются так же, как в списках (web/pages/clients.py и deals.py):
-# выгружается ровно то, что видно в списке по текущим фильтрам, но без разбивки на страницы.
 @router.get("/clients/export")
 def clients_export(
     request: Request, db: Session = Depends(get_db), user: User = Depends(require_web_permission(CLIENTS_READ))
@@ -81,7 +78,7 @@ def deals_export(
             date_from=params.get("date_from"), date_to=params.get("date_to"),
             amount_min=params.get("amount_min"), amount_max=params.get("amount_max"),
             custom_filters=filters, fields=fields, template=params.get("template"), sort=params.get("sort"),
-            page=page, per_page=per_page, viewer=user,  # сотрудник выгружает только свои
+            page=page, per_page=per_page, viewer=user,
         )
 
     fmt = _fmt(params.get("format"))
@@ -89,7 +86,6 @@ def deals_export(
     return _download(content, mime, ie.export_filename(ie.DEALS, fmt))
 
 
-# ------------------------------------------------------------------------- импорт
 def _upload_page(request, user, kind, *, error="", status_code=200):
     ctx = {
         "kind": kind,
@@ -139,7 +135,7 @@ def import_preview(
     except FileError as e:
         return _upload_page(request, user, kind, error=str(e), status_code=400)
 
-    report = ie.run_import(db, kind, table, user, duplicates=duplicates, commit=False)  # только проверка
+    report = ie.run_import(db, kind, table, user, duplicates=duplicates, commit=False)
     token = ""
     if not report.file_errors and report.loadable:
         token = import_store.save(user.id, kind, upload.filename, data, duplicates)

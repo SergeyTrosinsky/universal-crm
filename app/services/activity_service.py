@@ -27,10 +27,9 @@ MAX_VALUE_LEN = 200
 MAX_NOTE_LEN = 5000
 FEED_LIMIT = 100
 
-Snapshot = dict[str, tuple[str, str]]  # ключ -> (подпись, значение для показа)
+Snapshot = dict[str, tuple[str, str]]
 
 
-# ------------------------------------------------------------------ снимки
 def _clip(text: str) -> str:
     text = " ".join(str(text).split())
     return text if len(text) <= MAX_VALUE_LEN else text[: MAX_VALUE_LEN - 1] + "…"
@@ -104,7 +103,6 @@ def diff(before: Mapping[str, tuple[str, str]], after: Mapping[str, tuple[str, s
     return changes
 
 
-# ------------------------------------------------------------------ запись
 def record(
     db: Session,
     owner: Client | Deal,
@@ -135,7 +133,6 @@ def _owner_condition(model: type, owner: Client | Deal):
     return model.deal_id == owner.id if isinstance(owner, Deal) else model.client_id == owner.id
 
 
-# ----------------------------------------------------------------- заметки
 def clean_note_body(raw: Any) -> str:
     body = str(raw or "").strip()
     if not body:
@@ -172,16 +169,15 @@ def delete_note(db: Session, note: Note) -> None:
     db.commit()
 
 
-# -------------------------------------------------------------------- лента
 @dataclass
 class FeedItem:
-    type: str                      # "event" | "note"
+    type: str
     at: datetime
     id: int
     author: str | None
-    kind: str | None = None        # для события: created | updated
+    kind: str | None = None
     changes: list[dict[str, str]] | None = None
-    body: str | None = None        # для заметки
+    body: str | None = None
     author_id: int | None = None
 
 
@@ -203,6 +199,5 @@ def feed(db: Session, owner: Client | Deal, limit: int = FEED_LIMIT) -> list[Fee
         FeedItem("event", e.created_at, e.id, e.actor_name, kind=e.kind, changes=e.changes or [], author_id=e.actor_id)
         for e in events
     ] + [FeedItem("note", n.created_at, n.id, n.author_name, body=n.body, author_id=n.author_id) for n in notes]
-    # у событий и заметок отдельные счётчики id, поэтому при равном времени заметка идёт выше события
     items.sort(key=lambda i: (i.at, 1 if i.type == "note" else 0, i.id), reverse=True)
     return items[:limit]

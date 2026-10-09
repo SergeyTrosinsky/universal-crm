@@ -1,4 +1,3 @@
-{# Навигация по страницам. Использование: {{ pagination(request, page) }} #}
 {% macro pagination(request, page) %}
   {% if page.total > 0 %}
   <nav class="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row" aria-label="Страницы">
@@ -27,7 +26,6 @@
   {% endif %}
 {% endmacro %}
 
-{# Заголовок колонки с сортировкой: key — «name», обратный порядок — «-name» #}
 {% macro sort_th(request, label, key, current, classes='') %}
   {% set active = current == key or current == '-' ~ key %}
   {% set target = '-' ~ key if current == key else key %}

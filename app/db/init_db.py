@@ -48,7 +48,6 @@ def ensure_schema() -> None:
 
 ROLES_REV_KEY = "_roles_rev"
 ROLES_REV = 2
-# Права, добавленные в системные роли после первого релиза: (редакция, роль, права).
 ROLE_UPGRADES = [
     (2, "manager", [p.DEALS_READ_ALL, p.DEALS_ASSIGN, p.TASKS_ASSIGN]),
 ]

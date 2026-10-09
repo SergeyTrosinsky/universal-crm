@@ -41,7 +41,6 @@ SORTS = {
 DEFAULT_SORT = "due"
 
 
-# --------------------------------------------------------------- доступ
 def can_see_all(viewer: User) -> bool:
     return viewer.can(TASKS_READ_ALL)
 
@@ -61,7 +60,6 @@ def get_task(db: Session, task_id: int) -> Task | None:
     return db.get(Task, task_id)
 
 
-# --------------------------------------------------------------- список
 def _opt_int(value: Any) -> int | None:
     try:
         return parse_optional_int(value)
@@ -211,7 +209,6 @@ def related_tasks(
     return list(db.scalars(stmt))
 
 
-# --------------------------------------------------------------- валидация
 def _is_blank(value: Any) -> bool:
     return value is None or (isinstance(value, str) and not value.strip())
 
@@ -236,7 +233,7 @@ def parse_due(raw: Any) -> datetime | None:
             return local_to_utc(datetime.combine(datetime.strptime(text, fmt).date(), time(23, 59)))
         except ValueError:
             pass
-    try:  # ISO со смещением (из JSON API)
+    try:
         return local_to_utc(datetime.fromisoformat(str(raw).strip()))
     except ValueError:
         raise ValueError("Некорректная дата и время (пример: 2025-03-09 14:30)") from None
@@ -302,7 +299,6 @@ def _clean(
             errors["due_at"] = str(e)
 
     if not actor.can(TASKS_ASSIGN):
-        # без права назначать: исполнитель — сам сотрудник (или тот, кто уже назначен)
         allowed = {actor.id} | ({current.assignee_id} if current is not None and current.assignee_id else set())
         if "assignee_id" in data and not _is_blank(data.get("assignee_id")):
             try:
@@ -351,7 +347,6 @@ def _clean(
         if "client_id" not in errors:
             out["client_id"] = cid
 
-    # Согласованность: у сделки есть свой клиент.
     if deal is not None and "deal_id" not in errors and "client_id" not in errors:
         if out.get("client_id") is None:
             out["client_id"] = deal.client_id
@@ -369,7 +364,6 @@ def _apply_status(task: Task, status: TaskStatus) -> None:
         task.completed_at = None
 
 
-# --------------------------------------------------------------- CRUD
 def create_task(db: Session, *, data: Mapping[str, Any], actor: User) -> Task:
     clean, errors = _clean(db, data, partial=False, creating=True, actor=actor, current=None)
     if errors:

@@ -31,7 +31,6 @@ FALSE_WORDS = {"0", "false", "off", "no", "n", "нет"}
 FORM_PREFIX = "cf_"
 
 
-# ----------------------------------------------------------------- приведение типов
 def _is_blank(raw: Any) -> bool:
     if raw is None:
         return True
@@ -178,7 +177,6 @@ def raw_from_form(fields: Iterable[CustomField], form) -> dict[str, Any]:
     return raw
 
 
-# ------------------------------------------------------------------- запись в БД
 def apply_values(owner: Any, fields: Sequence[CustomField], clean: Mapping[int, Any]) -> None:
     """Создаёт/обновляет/удаляет CustomValue у клиента или сделки. Коммит — на вызывающем."""
     by_id = {f.id: f for f in fields}
@@ -187,7 +185,7 @@ def apply_values(owner: Any, fields: Sequence[CustomField], clean: Mapping[int, 
         current = existing.get(field_id)
         if value is None:
             if current is not None:
-                owner.custom_values.remove(current)  # delete-orphan
+                owner.custom_values.remove(current)
             continue
         if current is None:
             current = CustomValue(field=by_id[field_id])
@@ -195,7 +193,6 @@ def apply_values(owner: Any, fields: Sequence[CustomField], clean: Mapping[int, 
         current.set_value(value)
 
 
-# ------------------------------------------------------- значения для форм и экранов
 def values_by_field(owner: Any) -> dict[int, Any]:
     return {cv.field_id: cv.value for cv in owner.custom_values}
 
@@ -255,7 +252,6 @@ def display_value(field: CustomField, value: Any) -> str:
     return str(value)
 
 
-# ---------------------------------------------------------------------- фильтры
 def _owner_fk(model: type) -> Any:
     return CustomValue.client_id if model is Client else CustomValue.deal_id
 
@@ -317,8 +313,8 @@ def build_custom_conditions(
         elif ftype == FieldType.MULTISELECT:
             if value := filters.get(base):
                 as_text = cast(CustomValue.value_json, Text)
-                escaped = json.dumps(value)  # так SQLite хранит кириллицу (\uXXXX)
-                plain = f'"{value}"'  # так её отдаёт PostgreSQL (JSONB -> text)
+                escaped = json.dumps(value)
+                plain = f'"{value}"'
                 conditions.append(
                     has(
                         or_(

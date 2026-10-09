@@ -21,7 +21,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 CSV_MIME = "text/csv; charset=utf-8"
 FORMATS = ("xlsx", "csv")
-MAX_VALIDATION_ROWS = 2000      # на сколько строк шаблона действуют выпадающие списки
+MAX_VALIDATION_ROWS = 2000
 CSV_DELIMITERS = ";,\t"
 
 
@@ -32,10 +32,9 @@ class FileError(Exception):
 @dataclass
 class Table:
     headers: list[str]
-    rows: list[tuple[int, list[Any]]]  # (номер строки в файле, значения ячеек)
+    rows: list[tuple[int, list[Any]]]
 
 
-# ---------------------------------------------------------------------- чтение
 def normalize_header(value: Any) -> str:
     """Заголовок для сопоставления: без регистра, «ё» = «е», без «*» и лишних пробелов."""
     text = str(value or "").replace("*", " ").replace("ё", "е").replace("Ё", "Е")
@@ -48,7 +47,6 @@ def _clean_cell(value: Any) -> Any:
         return None
     if isinstance(value, str):
         text = value.strip()
-        # так экспорт защищает текст, похожий на формулу (см. safe_text)
         if len(text) > 1 and text[0] == "'" and text[1] in "=+-@":
             text = text[1:]
         return text or None
@@ -84,7 +82,6 @@ def read_table(data: bytes, filename: str, *, max_rows: int) -> Table:
             raise FileError(f"Слишком много строк: в одном файле можно загрузить до {max_rows}")
     if headers is None:
         raise FileError("Файл пустой: в нём нет строки с заголовками")
-    # лишние пустые колонки справа не нужны
     while headers and not headers[-1]:
         headers.pop()
     if not headers:
@@ -95,7 +92,7 @@ def read_table(data: bytes, filename: str, *, max_rows: int) -> Table:
 def _read_xlsx(data: bytes):
     try:
         wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
-    except Exception:  # noqa: BLE001 — openpyxl бросает разные исключения на битых файлах
+    except Exception:  # noqa: BLE001
         raise FileError("Не удалось прочитать файл Excel. Проверьте, что это файл .xlsx") from None
     try:
         sheet = wb.worksheets[0] if wb.worksheets else None
@@ -137,7 +134,6 @@ def _read_csv(data: bytes):
         raise FileError(f"Не удалось разобрать CSV: {e}") from None
 
 
-# ---------------------------------------------------------------------- запись
 def safe_text(value: str) -> str:
     """Защита от «формул» в Excel: текст, начинающийся с = @ или похожий на формулу с + / -, получает апостроф.
     Телефоны вида «+7 (916) 123-45-67» и отрицательные числа остаются как есть."""
@@ -180,7 +176,7 @@ def write_csv(headers: list[str], rows: list[list[Any]]) -> bytes:
 @dataclass
 class ListValidation:
     """Выпадающий список в колонке шаблона."""
-    column: int               # номер колонки, с 1
+    column: int
     values: list[str]
 
 
@@ -189,9 +185,9 @@ class XlsxSpec:
     headers: list[str]
     rows: list[list[Any]] = field(default_factory=list)
     sheet_title: str = "Данные"
-    hints: list[tuple[str, str, str]] = field(default_factory=list)  # (колонка, обязательна?, что вводить)
+    hints: list[tuple[str, str, str]] = field(default_factory=list)
     lists: list[ListValidation] = field(default_factory=list)
-    money_columns: set[int] = field(default_factory=set)             # номера колонок (с 1) с суммами
+    money_columns: set[int] = field(default_factory=set)
 
 
 _HEADER_FILL = PatternFill("solid", fgColor="E0E7FF")
@@ -238,7 +234,6 @@ def write_xlsx(spec: XlsxSpec) -> bytes:
             elif cell.column in spec.money_columns and isinstance(cell.value, (int, float)):
                 cell.number_format = "#,##0.00"
             elif isinstance(cell.value, str):
-                # строка, начинающаяся с «=», не должна стать формулой
                 cell.data_type = "s"
     if spec.rows:
         ws.auto_filter.ref = f"A1:{get_column_letter(len(spec.headers))}{len(spec.rows) + 1}"

@@ -16,7 +16,6 @@ from app.services.errors import ValidationFailed
 EDITABLE = {"name", "description", "is_active"}
 
 
-# ------------------------------------------------------------------ чтение
 def list_templates(db: Session, *, only_active: bool = False) -> list[DealTemplate]:
     stmt = select(DealTemplate)
     if only_active:
@@ -52,7 +51,6 @@ def find_by_name(db: Session, name: str) -> DealTemplate | None:
     return db.scalar(select(DealTemplate).where(func.lower(DealTemplate.name) == name.strip().lower()))
 
 
-# ------------------------------------------------------------------ проверка
 def _clean_name(db: Session, name: Any, *, exclude_id: int | None = None) -> str:
     text = " ".join(str(name or "").split())
     if not text:
@@ -72,7 +70,6 @@ def _clean_description(value: Any) -> str | None:
     return text or None
 
 
-# ------------------------------------------------------------------ запись
 def create_template(
     db: Session, *, name: str, description: str | None = None, is_active: bool = True
 ) -> DealTemplate:

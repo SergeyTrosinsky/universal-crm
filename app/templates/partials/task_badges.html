@@ -8,7 +8,6 @@
   <span class="badge {{ styles.get(task.status.value, 'bg-slate-100 text-slate-700') }}">{{ task_status_labels.get(task.status.value, task.status.value) }}</span>
 {% endmacro %}
 
-{# Срок: просроченный выделяется красным #}
 {% macro due_label(task) %}
   {% if task.due_at %}
     <span class="{{ 'font-medium text-rose-600' if task.is_overdue else 'text-slate-600' }}">{{ task.due_at | dt('%d.%m.%Y %H:%M') }}{% if task.is_overdue %} · просрочено{% endif %}</span>

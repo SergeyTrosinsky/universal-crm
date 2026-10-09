@@ -1,5 +1,4 @@
 #!/bin/sh
-# Запуск контейнера: сначала миграции базы, потом сервер.
 set -e
 
 echo "[crm] Применяю миграции базы данных..."
@@ -15,5 +14,4 @@ until alembic upgrade head; do
 done
 
 echo "[crm] Запускаю сервер."
-# Один процесс: счётчики неудачных входов хранятся в памяти и должны быть общими.
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips='*'

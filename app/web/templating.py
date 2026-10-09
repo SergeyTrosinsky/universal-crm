@@ -121,13 +121,13 @@ def render(
     ctx = dict(context or {})
     ui = getattr(request.state, "ui", None) or settings_service.ui(None)
     ctx["ui"] = ui
-    ctx["app_name"] = ui["app_name"]  # перекрывает глобальное имя из окружения
+    ctx["app_name"] = ui["app_name"]
     ctx["user"] = user
     ctx["flashes"] = request.session.pop(FLASH_KEY, [])
     token = csrf.get_token(request)
     ctx["csrf_token"] = token
     ctx["request"] = request
-    html = csrf.inject(templates.get_template(name).render(ctx), token)  # токен — во все POST-формы
+    html = csrf.inject(templates.get_template(name).render(ctx), token)
     return HTMLResponse(html, status_code=status_code)
 
 

@@ -1,4 +1,3 @@
-// Фильтры списков: пустые поля не попадают в адрес страницы.
 (function () {
   'use strict';
   document.addEventListener('submit', function (e) {
@@ -10,7 +9,6 @@
       }
     });
   });
-  // Возврат по кнопке «назад» не должен оставлять поля отключёнными
   window.addEventListener('pageshow', function () {
     document.querySelectorAll('form[data-filter-form] [disabled]').forEach(function (el) {
       el.disabled = false;

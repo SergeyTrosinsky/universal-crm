@@ -1,4 +1,3 @@
-{# Фильтры по кастомным полям. fields — filterable-поля, filters — {имя параметра: значение}. #}
 {% macro custom_filter_inputs(fields, filters) %}
   {% for f in fields %}
     {% set t = f.field_type.value %}

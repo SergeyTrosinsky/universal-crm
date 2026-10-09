@@ -1,4 +1,3 @@
-{# Кнопка «Импорт / экспорт» в шапке списка. request передаётся явно: макросы не видят контекст страницы. kind — clients | deals; path — адрес списка. #}
 {% macro data_menu(request, kind, path, can_import) %}
 <details class="relative" data-dropdown>
   <summary class="btn btn-secondary cursor-pointer list-none">Импорт / экспорт

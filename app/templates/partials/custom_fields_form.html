@@ -1,5 +1,3 @@
-{# Динамические поля формы по активным CustomField.
-   fields — список полей, values — {код: значение}, errors — {cf_<код>: текст}. #}
 {% macro custom_inputs(fields, values, errors) %}
   {% set input_types = {'text': 'text', 'phone': 'tel', 'email': 'email', 'url': 'url',
                         'integer': 'number', 'decimal': 'text', 'date': 'date', 'datetime': 'datetime-local'} %}

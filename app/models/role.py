@@ -23,7 +23,7 @@ class Role(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str | None] = mapped_column(Text)
     permissions: Mapped[list[str]] = mapped_column(JSONType, default=list)
-    is_system: Mapped[bool] = mapped_column(Boolean, default=False)  # системные роли нельзя удалить
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False)
 
     users: Mapped[list[User]] = relationship(back_populates="role")
 

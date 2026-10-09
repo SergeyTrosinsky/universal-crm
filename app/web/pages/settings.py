@@ -28,7 +28,6 @@ def _role_or_404(db: Session, role_id: int) -> Role:
     return role
 
 
-# ---------------------------------------------------------------- пользователи
 @router.get("/users")
 def users_list(
     request: Request, db: Session = Depends(get_db), user: User = Depends(require_web_permission(USERS_MANAGE))
@@ -130,7 +129,6 @@ def user_update(
     return redirect("/settings/users")
 
 
-# ----------------------------------------------------------------------- роли
 @router.get("/roles")
 def roles_list(
     request: Request, db: Session = Depends(get_db), user: User = Depends(require_web_permission(USERS_MANAGE))
@@ -206,7 +204,6 @@ def role_update(
             role,
             name=name,
             description=description,
-            # у роли администратора права не редактируются
             permissions=None if role.has_permission("*") else permissions,
         )
     except RoleError as e:

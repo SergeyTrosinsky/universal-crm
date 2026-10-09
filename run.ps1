@@ -1,16 +1,11 @@
-﻿<#
-  Universal CRM: запуск проекта в Docker и публичного туннеля Cloudflare одной командой.
-  Запуск: двойной клик по run.bat (или  powershell -ExecutionPolicy Bypass -File .\run.ps1).
-  Остановка: Ctrl+C в этом окне (туннель закрывается, контейнеры останавливаются, данные сохраняются).
-#>
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 Set-Location -LiteralPath $PSScriptRoot
 
 $EnvFile      = '.env.docker'
 $AppUrl       = 'http://localhost:8000'
-$ReadyTimeout = 120   # сек: ждать готовности веб-сервиса
-$UrlTimeout   = 20    # сек: искать ссылку туннеля в выводе cloudflared
+$ReadyTimeout = 120
+$UrlTimeout   = 20
 
 function Stop-WithMessage([string]$Message, [string]$Color = 'Yellow') {
     Write-Host ''
@@ -19,7 +14,6 @@ function Stop-WithMessage([string]$Message, [string]$Color = 'Yellow') {
     exit 1
 }
 
-# Читает файл, даже если в него в этот момент пишет другой процесс.
 function Read-SharedText([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return '' }
     try {
@@ -28,7 +22,6 @@ function Read-SharedText([string]$Path) {
     } catch { return '' }
 }
 
-# ---------------------------------------------------------------- 0. предварительные проверки
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Stop-WithMessage 'Docker не найден. Установите Docker Desktop: https://www.docker.com/products/docker-desktop/'
 }
@@ -41,12 +34,11 @@ if (-not $cloudflared) {
                       "затем закройте это окно и запустите run.bat снова.")
 }
 
-# ---------------------------------------------------------------- 1. Docker Desktop запущен? Если нет — запускаем сами
-$DockerStartTimeout = 240   # сек: Docker Desktop стартует долго, особенно после включения компьютера
+$DockerStartTimeout = 240
 
 function Test-DockerEngine {
     $old = $ErrorActionPreference
-    $ErrorActionPreference = 'Continue'   # у docker stderr при перенаправлении в PowerShell 5.1 не должен становиться ошибкой
+    $ErrorActionPreference = 'Continue'
     try { & docker info 2>&1 | Out-Null; return ($LASTEXITCODE -eq 0) } finally { $ErrorActionPreference = $old }
 }
 
@@ -87,14 +79,12 @@ $outLog = Join-Path $env:TEMP 'crm-cloudflared.out.log'
 $errLog = Join-Path $env:TEMP 'crm-cloudflared.err.log'
 
 try {
-    # ------------------------------------------------------------ 2. контейнеры
     Write-Host 'Запускаю контейнеры CRM...' -ForegroundColor Cyan
     & docker compose --env-file $EnvFile up -d
     if ($LASTEXITCODE -ne 0) {
         Stop-WithMessage 'Не удалось запустить контейнеры (см. сообщение выше).' 'Red'
     }
 
-    # ------------------------------------------------------------ 3. ждём готовности веб-сервиса
     Write-Host "Жду готовности $AppUrl (до $ReadyTimeout с)..." -ForegroundColor Cyan
     $deadline = (Get-Date).AddSeconds($ReadyTimeout)
     $ready = $false
@@ -111,7 +101,6 @@ try {
     }
     Write-Host 'CRM готова.' -ForegroundColor Green
 
-    # ------------------------------------------------------------ 4. туннель Cloudflare (в фоне)
     Remove-Item -LiteralPath $outLog, $errLog -ErrorAction SilentlyContinue
     Write-Host 'Запускаю туннель Cloudflare (HTTP/2)...' -ForegroundColor Cyan
     $tunnel = Start-Process -FilePath $cloudflared.Source `
@@ -119,7 +108,6 @@ try {
         -RedirectStandardOutput $outLog -RedirectStandardError $errLog `
         -WindowStyle Hidden -PassThru
 
-    # ------------------------------------------------------------ 5. ищем ссылку в выводе
     $publicUrl = $null
     $deadline = (Get-Date).AddSeconds($UrlTimeout)
     $pattern  = 'https://(?!api\.)[a-z0-9][a-z0-9-]*\.trycloudflare\.com'
@@ -139,7 +127,6 @@ try {
         Stop-WithMessage 'Проверьте интернет-соединение и повторите запуск.' 'Red'
     }
 
-    # ------------------------------------------------------------ 6-7. показываем и открываем
     Write-Host ''
     Write-Host '=====================================================' -ForegroundColor Green
     Write-Host '  Публичная ссылка на CRM:' -ForegroundColor Green
@@ -149,7 +136,6 @@ try {
     Write-Host 'Ссылка доступна всем, у кого она есть, пока работает это окно. Используйте надёжные пароли.' -ForegroundColor Yellow
     Start-Process $publicUrl
 
-    # ------------------------------------------------------------ 8. держим туннель открытым
     Write-Host ''
     Write-Host 'Нажмите Ctrl+C для остановки туннеля и сервера' -ForegroundColor Cyan
     while ($true) {
@@ -165,6 +151,6 @@ finally {
     Write-Host 'Останавливаю туннель и сервер...' -ForegroundColor Cyan
     if ($tunnel -and -not $tunnel.HasExited) { Stop-Process -Id $tunnel.Id -Force -ErrorAction SilentlyContinue }
     $ErrorActionPreference = 'Continue'
-    & docker compose --env-file $EnvFile stop 2>&1 | Out-Null   # stop, а не down: данные и тома остаются
+    & docker compose --env-file $EnvFile stop 2>&1 | Out-Null
     Write-Host 'Остановлено. Данные сохранены.' -ForegroundColor Green
 }

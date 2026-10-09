@@ -30,7 +30,6 @@ class CustomValue(Base):
             "(client_id IS NOT NULL AND deal_id IS NULL) OR (client_id IS NULL AND deal_id IS NOT NULL)",
             name="exactly_one_owner",
         ),
-        # NULL не конфликтуют между собой ни в SQLite, ни в PostgreSQL — оба ограничения безопасны.
         UniqueConstraint("field_id", "client_id", name="uq_custom_values_field_client"),
         UniqueConstraint("field_id", "deal_id", name="uq_custom_values_field_deal"),
         Index("ix_custom_values_client", "client_id"),
@@ -59,7 +58,7 @@ class CustomValue(Base):
     def value(self) -> Any:
         value = getattr(self, FIELD_STORAGE[self.field.field_type])
         if value is not None and self.field.field_type == FieldType.INTEGER:
-            return int(value)  # в БД число хранится как Numeric; целое поле отдаём целым
+            return int(value)
         return value
 
     def set_value(self, raw: Any) -> None:

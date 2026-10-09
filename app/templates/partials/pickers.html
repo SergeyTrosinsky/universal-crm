@@ -1,4 +1,3 @@
-{# Поле выбора связанной записи с живым поиском. url — JSON-эндпоинт ?q=…, возвращающий [{id, name, sub}] #}
 {% macro picker(label, name, url, picked_id='', picked_name='', placeholder='Начните вводить…', required=false, error='', help='') %}
   <div data-client-picker data-search-url="{{ url }}">
     <label for="{{ name }}_picker" class="label">{{ label }}{% if required %}<span class="text-rose-500"> *</span>{% endif %}</label>

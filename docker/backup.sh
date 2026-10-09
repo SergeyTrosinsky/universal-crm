@@ -1,6 +1,4 @@
 #!/bin/sh
-# Резервные копии PostgreSQL: сразу при старте, затем каждые BACKUP_INTERVAL_HOURS часов.
-# Старше BACKUP_KEEP_DAYS дней — удаляются. Файлы лежат в ./backups на сервере.
 KEEP="${BACKUP_KEEP_DAYS:-14}"
 EVERY="${BACKUP_INTERVAL_HOURS:-24}"
 mkdir -p /backups
@@ -9,7 +7,6 @@ backup() {
   stamp="$(date +%Y%m%d_%H%M%S)"
   tmp="/backups/.crm_${stamp}.tmp"
   out="/backups/crm_${stamp}.dump"
-  # Сначала во временный файл и проверка, что копия читается; так «битых» копий в списке не бывает.
   if pg_dump --format=custom --file="$tmp" && pg_restore --list "$tmp" > /dev/null; then
     mv "$tmp" "$out"
     echo "[backup] Готово: $out ($(du -h "$out" | cut -f1))"

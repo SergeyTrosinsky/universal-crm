@@ -1,11 +1,9 @@
-﻿<#
-  Universal CRM: меню администратора (версии кода в git/GitHub, резервные копии базы, запуск и остановка).
-  Запуск: двойной клик по admin.bat.
-#>
-$ErrorActionPreference = 'Continue'   # у git и docker вывод в stderr — это не ошибки скрипта
+﻿$ErrorActionPreference = 'Continue'
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 Set-Location -LiteralPath $PSScriptRoot
 $EnvFile = '.env.docker'
+$env:GIT_PAGER = 'cat'
+$env:LESS = 'FRX'
 
 function Say([string]$t, [string]$c = 'Gray') { Write-Host $t -ForegroundColor $c }
 function Pause-Menu { Write-Host ''; Read-Host 'Нажмите Enter, чтобы вернуться в меню' | Out-Null }
@@ -26,7 +24,6 @@ function Require-Docker {
 }
 function Tree-Dirty { [bool](& git status --porcelain) }
 
-# ---------------------------------------------------------------- версии кода
 function Show-Status {
     if (Require-Git) {
         Say '--- Git: изменения с последнего сохранения ---' Cyan
@@ -50,7 +47,6 @@ function Show-History {
 
 function Save-Version {
     if (-not (Require-Git)) { return }
-    # защита: секреты и данные не должны попадать в git
     & git add -A
     $bad = & git diff --cached --name-only | Select-String -Pattern '(^|/)\.env($|\.docker$)|\.db$|\.sqlite3?$|\.dump$|(^|/)backups/'
     if ($bad) {
@@ -106,13 +102,11 @@ function Rollback-Code {
     Say 'Чтобы применить к запущенному приложению: пункт «Пересобрать и обновить контейнеры».' Cyan
 }
 
-# ---------------------------------------------------------------- резервные копии базы
 function Backup-Db([string]$Prefix = 'crm_manual') {
     if (-not (Require-Docker)) { return $null }
     $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
     $name = "${Prefix}_$stamp.dump"
     New-Item -ItemType Directory -Force -Path 'backups' | Out-Null
-    # pg_dump запускается в сервисе backup: папка backups у него смонтирована, файл сразу попадает на диск
     Compose exec -T backup sh -c "pg_dump --format=custom --file=/backups/$name && pg_restore --list /backups/$name > /dev/null" | Out-Host
     if ($LASTEXITCODE -ne 0) { Say 'Копию создать не удалось (запущены ли контейнеры?).' Red; return $null }
     $f = Join-Path 'backups' $name
@@ -159,7 +153,6 @@ function Load-Demo {
     else { Say 'Загрузка демо не удалась (см. вывод выше). Данные можно вернуть пунктом 7.' Red }
 }
 
-# ---------------------------------------------------------------- запуск, остановка, тесты
 function Rebuild {
     if (Require-Docker) { Compose up -d --build; if ($LASTEXITCODE -eq 0) { Say 'Контейнеры обновлены (миграции применились при старте).' Green } }
 }
@@ -171,7 +164,6 @@ function Run-Tests {
     & $py -m pytest -q
 }
 
-# ---------------------------------------------------------------- меню
 while ($true) {
     Clear-Host
     Say '=============== Universal CRM — администрирование ===============' Cyan

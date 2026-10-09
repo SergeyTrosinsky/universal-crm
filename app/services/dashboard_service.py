@@ -38,7 +38,6 @@ def period_start(period: str) -> datetime | None:
     days = PERIODS.get(period, PERIODS[DEFAULT_PERIOD])[1]
     if days is None:
         return None
-    # «последние N дней» включая сегодняшний
     start_day = today_local() - timedelta(days=days - 1)
     return local_day_bounds_utc(start_day)[0]
 
@@ -55,7 +54,6 @@ def _month_keys(count: int = 6) -> list[tuple[int, int]]:
     return list(reversed(keys))
 
 
-# ------------------------------------------------------------------ блоки
 def _clients_block(db: Session, since: datetime | None) -> dict[str, Any]:
     total = db.scalar(select(func.count()).select_from(Client)) or 0
     new = total
@@ -74,7 +72,6 @@ def _deals_block(db: Session, since: datetime | None, scope: list, personal: boo
     statuses = status_service.list_statuses(db)
     kind_by_status = {s.id: s.kind for s in statuses}
 
-    # распределение по статусам
     per_status: dict[int, dict[str, Decimal]] = defaultdict(dict)
     counts: dict[int, int] = defaultdict(int)
     for status_id, currency, cnt, total in db.execute(
@@ -102,7 +99,6 @@ def _deals_block(db: Session, since: datetime | None, scope: list, personal: boo
             for currency, amount in per_status.get(s.id, {}).items():
                 open_amounts[currency] += amount
 
-    # итоги закрытых за период
     def closed(kind: StatusKind):
         conds = [Deal.status_id.in_([sid for sid, k in kind_by_status.items() if k == kind]), *scope]
         if since is not None:
@@ -271,13 +267,12 @@ def _breakdowns(db: Session, *, deals: bool, clients: bool, scope: list | None =
     return out
 
 
-# ------------------------------------------------------------------ сборка
 def build_dashboard(db: Session, viewer: User, period: str | None = None) -> dict[str, Any]:
     period = period if period in PERIODS else DEFAULT_PERIOD
     since = period_start(period)
     can_deals, can_clients, can_tasks = viewer.can(DEALS_READ), viewer.can(CLIENTS_READ), viewer.can(TASKS_READ)
     scope = _deal_scope(viewer)
-    personal = bool(scope)  # показываем только личную статистику
+    personal = bool(scope)
 
     data: dict[str, Any] = {
         "period": period,

@@ -5,7 +5,6 @@ from typing import Type
 from sqlalchemy import JSON, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 
-# JSON на SQLite, JSONB на PostgreSQL.
 JSONType = JSON().with_variant(JSONB(), "postgresql")
 
 

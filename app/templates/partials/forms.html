@@ -1,5 +1,3 @@
-{# Макросы форм. Подключение: {% from "partials/forms.html" import field, select_field, textarea_field, error_box %} #}
-
 {% macro error_box(error) %}
   {% if error %}
     <div role="alert" class="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-800 ring-1 ring-inset ring-rose-200">{{ error }}</div>
@@ -20,7 +18,6 @@
   </div>
 {% endmacro %}
 
-{# options — список пар (значение, подпись) #}
 {% macro select_field(label, name, options, selected='', required=false, blank='', error='', help='', disabled=false) %}
   <div>
     <label for="{{ name }}" class="label">{{ label }}{% if required %}<span class="text-rose-500"> *</span>{% endif %}</label>

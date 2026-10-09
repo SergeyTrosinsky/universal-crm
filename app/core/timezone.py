@@ -11,7 +11,7 @@ from app.core.config import get_settings
 def app_tz() -> tzinfo:
     try:
         return ZoneInfo(get_settings().APP_TIMEZONE)
-    except ZoneInfoNotFoundError:  # на Windows нужен пакет tzdata
+    except ZoneInfoNotFoundError:
         return timezone.utc
 
 

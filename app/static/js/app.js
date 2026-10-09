@@ -1,4 +1,3 @@
-// Общее поведение интерфейса: мобильное меню, подтверждения, закрытие уведомлений.
 (function () {
   'use strict';
 
@@ -19,13 +18,11 @@
     }
   });
 
-  // <form data-confirm="Текст вопроса"> — подтверждение перед отправкой
   document.addEventListener('submit', function (e) {
     var message = e.target.getAttribute && e.target.getAttribute('data-confirm');
     if (message && !window.confirm(message)) e.preventDefault();
   });
 
-  // <details data-dropdown> закрывается кликом снаружи и клавишей Esc
   document.addEventListener('click', function (e) {
     document.querySelectorAll('details[data-dropdown][open]').forEach(function (d) {
       if (!d.contains(e.target)) d.removeAttribute('open');
@@ -38,7 +35,6 @@
     });
   });
 
-  // Успешные уведомления исчезают сами; ошибки остаются, пока их не закроют
   window.setTimeout(function () {
     document.querySelectorAll('[data-flash][data-category="success"]').forEach(function (el) {
       el.remove();

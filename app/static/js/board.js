@@ -1,6 +1,3 @@
-// Канбан-доска сделок: перетаскивание карточек между статусами (HTML5 DnD)
-// и запасной вариант для сенсорных экранов — выпадающий список в карточке.
-// Статус меняется через POST /api/v1/deals/{id}/status (авторизация — по cookie).
 (function () {
   'use strict';
   var board = document.querySelector('[data-board]');
@@ -10,7 +7,7 @@
   var symbols = {};
   try {
     symbols = JSON.parse(document.getElementById('board-currencies').textContent) || {};
-  } catch (e) { /* без символов валют выводим коды */ }
+  } catch (e) { }
   var dragged = null;
 
   function showError(text) {
@@ -27,7 +24,6 @@
     return int + ',' + parts[1] + ' ' + (symbols[currency] || currency);
   }
 
-  // Пересчёт счётчика и сумм колонки по карточкам, которые в ней сейчас лежат
   function refresh(column) {
     var cards = column.querySelectorAll('[data-card]');
     var hiddenLink = column.querySelector('a[href^="/deals?status="]');
@@ -37,7 +33,7 @@
       extra = m ? parseInt(m[0], 10) : 0;
     }
     column.querySelector('[data-count]').textContent = String(cards.length + extra);
-    if (extra) return; // часть сделок не загружена — точные суммы пришлёт сервер при обновлении страницы
+    if (extra) return;
     var sums = {};
     cards.forEach(function (card) {
       var cur = card.getAttribute('data-currency');
@@ -60,7 +56,6 @@
     if (sourceColumn === targetColumn) return;
 
     var zone = targetColumn.querySelector('[data-dropzone]');
-    // beforeNode: узел — вставить перед ним; null — в конец колонки; undefined — в начало
     zone.insertBefore(card, beforeNode === undefined ? zone.firstChild : beforeNode);
     syncSelect(card, statusId);
     refresh(sourceColumn);
@@ -86,7 +81,6 @@
         throw new Error(resp.status === 401 || resp.status === 403 ? 'Недостаточно прав или сессия истекла — обновите страницу' : text);
       });
     }).catch(function (err) {
-      // откат: возвращаем карточку на прежнее место
       var srcZone = sourceColumn.querySelector('[data-dropzone]');
       srcZone.insertBefore(card, sourceNext && sourceNext.parentNode === srcZone ? sourceNext : null);
       syncSelect(card, sourceColumn.getAttribute('data-status-id'));
@@ -99,7 +93,6 @@
   }
 
   function dropBefore(zone, y) {
-    // ближайшая карточка, середина которой ниже курсора
     var cards = Array.prototype.filter.call(zone.querySelectorAll('[data-card]'), function (c) { return c !== dragged; });
     for (var i = 0; i < cards.length; i++) {
       var box = cards[i].getBoundingClientRect();
@@ -117,7 +110,7 @@
     if (!card) return;
     dragged = card;
     e.dataTransfer.effectAllowed = 'move';
-    try { e.dataTransfer.setData('text/plain', card.getAttribute('data-deal-id')); } catch (err) { /* IE/Edge legacy */ }
+    try { e.dataTransfer.setData('text/plain', card.getAttribute('data-deal-id')); } catch (err) { }
     window.setTimeout(function () { card.classList.add('opacity-40'); }, 0);
   });
 

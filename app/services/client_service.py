@@ -35,7 +35,6 @@ def deals_count(db: Session, client_id: int) -> int:
     return db.scalar(select(func.count()).select_from(Deal).where(Deal.client_id == client_id)) or 0
 
 
-# ------------------------------------------------------------------- список
 def _search_condition(text: str):
     parts = [
         contains(Client.name, text),
@@ -98,7 +97,6 @@ def search_for_picker(db: Session, q: str, limit: int = 10) -> list[Client]:
     return list(db.scalars(stmt))
 
 
-# ----------------------------------------------------------------- валидация
 def _text(data: Mapping[str, Any], key: str, limit: int, errors: dict[str, str], out: dict[str, Any]) -> None:
     if key not in data:
         return
@@ -166,7 +164,6 @@ def _clean_base(
     return out, errors
 
 
-# ---------------------------------------------------------------------- CRUD
 def create_client(
     db: Session, *, data: Mapping[str, Any], custom: Mapping[str, Any], actor: User, commit: bool = True
 ) -> Client:
@@ -181,7 +178,7 @@ def create_client(
     client = Client(**base)
     db.add(client)
     eav_service.apply_values(client, fields, clean_custom)
-    db.flush()  # нужен id клиента для записи в журнал
+    db.flush()
     activity_service.record(db, client, kind=activity_service.CREATED, actor=actor)
     db.commit() if commit else db.flush()
     return client
@@ -228,7 +225,7 @@ def delete_client(db: Session, client: Client) -> int:
 
 def list_client_deals(db: Session, client_id: int, viewer: User | None = None) -> list[Deal]:
     """Сделки клиента; сотрудник без права deals:read_all видит только свои."""
-    from app.services import deal_service  # локально: deal_service сам импортирует client-модели
+    from app.services import deal_service
 
     stmt = (
         select(Deal)

@@ -33,14 +33,13 @@ from app.services.tabular import (
 CLIENTS = "clients"
 DEALS = "deals"
 KINDS = (CLIENTS, DEALS)
-DUPLICATES = ("skip", "update", "allow")  # allow — только для сделок: загружать и повторы
+DUPLICATES = ("skip", "update", "allow")
 MAX_EXPORT_ROWS = 50000
-AMBIGUOUS = -1  # в индексах: под ключом несколько записей
+AMBIGUOUS = -1
 
 ACTION_LABELS = {"create": "Будет создано", "update": "Будет обновлено", "skip": "Пропущено", "error": "Ошибка"}
 
 
-# ------------------------------------------------------------------ описание колонок
 @dataclass(frozen=True)
 class BaseColumn:
     key: str
@@ -90,7 +89,7 @@ DEAL_COLUMNS: tuple[BaseColumn, ...] = (
 )
 
 COLUMNS = {CLIENTS: CLIENT_COLUMNS, DEALS: DEAL_COLUMNS}
-DEAL_AMOUNT_COLUMN = 1 + [c.key for c in DEAL_COLUMNS].index("amount")  # номер колонки в Excel (с 1)
+DEAL_AMOUNT_COLUMN = 1 + [c.key for c in DEAL_COLUMNS].index("amount")
 
 ERROR_LABELS = {
     "type": "Тип", "name": "Имя", "company_name": "Компания", "email": "Email", "phone": "Телефон",
@@ -111,12 +110,11 @@ TYPE_WORDS: dict[str, str] = {
 }
 
 
-# --------------------------------------------------------------------- сопоставление колонок
 @dataclass
 class ColumnMap:
-    base: dict[str, int] = field(default_factory=dict)       # ключ колонки -> индекс в строке
-    custom: dict[int, int] = field(default_factory=dict)     # id поля -> индекс в строке
-    headers: dict[int, str] = field(default_factory=dict)    # id поля -> как называть в сообщениях
+    base: dict[str, int] = field(default_factory=dict)
+    custom: dict[int, int] = field(default_factory=dict)
+    headers: dict[int, str] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
     def cell(self, cells: Sequence[Any], key: str) -> Any:
@@ -172,11 +170,10 @@ def map_columns(headers: Sequence[str], columns: Sequence[BaseColumn], fields: S
     return result
 
 
-# ---------------------------------------------------------------------------- отчёт
 @dataclass
 class RowResult:
     row: int
-    action: str  # create | update | skip | error
+    action: str
     title: str
     messages: list[str] = field(default_factory=list)
 
@@ -210,7 +207,6 @@ class Report:
             self.failed += 1
 
 
-# --------------------------------------------------------------------- разбор значений
 def _text(value: Any) -> str:
     if value is None:
         return ""
@@ -370,7 +366,6 @@ class UserIndex:
         return mapped
 
 
-# ---------------------------------------------------------------------- импорт клиентов
 def _missing_required(cmap: ColumnMap, columns: Sequence[BaseColumn], fields: Sequence[CustomField]) -> list[str]:
     missing = [c.header for c in columns if c.required and c.key not in cmap.base]
     for f in fields:
@@ -448,7 +443,6 @@ def import_clients(db: Session, table: Table, actor: User, *, duplicates: str = 
     return report
 
 
-# ---------------------------------------------------------------------- импорт сделок
 def import_deals(db: Session, table: Table, actor: User, *, duplicates: str = "skip") -> Report:
     report = Report(kind=DEALS)
     fields = deal_service.active_fields(db)
@@ -457,7 +451,7 @@ def import_deals(db: Session, table: Table, actor: User, *, duplicates: str = "s
     report.warnings = list(cmap.warnings)
 
     missing = [c.header for c in DEAL_COLUMNS if c.required and c.key not in cmap.base]
-    missing += [  # обязательные общие поля; поля шаблонов проверяются в строках
+    missing += [
         cmap.headers.get(f.id, f.label)
         for f in fields
         if f.template_id is None and f.is_required and f.field_type != FieldType.BOOLEAN and f.id not in cmap.custom
@@ -569,7 +563,6 @@ def run_import(
     return report
 
 
-# -------------------------------------------------------------------------- экспорт
 def collect(fetch: Callable[[int, int], Page], *, batch: int = 500, limit: int = MAX_EXPORT_ROWS) -> list:
     """Забирает все страницы выборки (fetch(page, per_page) -> Page)."""
     items: list = []
@@ -628,7 +621,7 @@ def export_deals(db: Session, deals: Sequence[Deal], fmt: str) -> tuple[bytes, s
     headers = [c.header for c in DEAL_COLUMNS] + [names[f.id] for f in fields]
     rows = []
     for d in deals:
-        stored = d.custom  # только поля, которые относятся к шаблону сделки
+        stored = d.custom
         rows.append(
             [
                 d.title, d.client.name, d.client.phone, d.client.email, d.amount, d.currency, d.deal_date,
@@ -644,7 +637,6 @@ def export_filename(kind: str, fmt: str) -> str:
     return f"{kind}-{today_local():%Y-%m-%d}.{fmt}"
 
 
-# --------------------------------------------------------------------- шаблон файла
 def _field_hint(f: CustomField) -> str:
     ftype = f.field_type
     parts: list[str] = []

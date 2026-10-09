@@ -29,7 +29,7 @@ class LoginLimiter:
     def __init__(self) -> None:
         self._hits: dict[str, deque[float]] = {}
         self._lock = Lock()
-        self._now = time.monotonic  # подменяется в тестах
+        self._now = time.monotonic
 
     @staticmethod
     def _keys(email: str, ip: str) -> tuple[str, str]:

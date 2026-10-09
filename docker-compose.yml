@@ -1,8 +1,3 @@
-# Universal CRM: приложение + PostgreSQL + автоматические резервные копии (+ HTTPS по желанию).
-#
-#   cp .env.docker.example .env.docker      # заполните пароли
-#   docker compose --env-file .env.docker up -d --build
-#   с доменом и HTTPS:  docker compose --env-file .env.docker --profile https up -d --build
 name: universal-crm
 
 services:
@@ -30,13 +25,13 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg2://crm:${POSTGRES_PASSWORD}@db:5432/crm
-      AUTO_CREATE_SCHEMA: "false"          # схему ведут миграции (запускаются при старте контейнера)
+      AUTO_CREATE_SCHEMA: "false"
       DEBUG: "false"
       SECRET_KEY: ${SECRET_KEY:?Задайте SECRET_KEY в .env.docker}
       APP_NAME: ${APP_NAME:-Universal CRM}
       APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Moscow}
-      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}     # true, если сайт открывается по https
-      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}   # true за Caddy / nginx
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
       FIRST_ADMIN_EMAIL: ${FIRST_ADMIN_EMAIL:-}
       FIRST_ADMIN_PASSWORD: ${FIRST_ADMIN_PASSWORD:-}
       FIRST_ADMIN_NAME: ${FIRST_ADMIN_NAME:-Администратор}
@@ -44,7 +39,6 @@ services:
       IMPORT_MAX_FILE_MB: ${IMPORT_MAX_FILE_MB:-5}
     volumes:
       - app_data:/data
-    # По умолчанию порт открыт только на самом сервере. Без домена и HTTPS поставьте APP_BIND=0.0.0.0.
     ports:
       - "${APP_BIND:-127.0.0.1}:${APP_PORT:-8000}:8000"
 
@@ -65,7 +59,6 @@ services:
     volumes:
       - ./backups:/backups
       - ./docker/backup.sh:/backup.sh:ro
-    # tr убирает возможные переводы строк Windows в скрипте
     entrypoint: ["/bin/sh", "-c", "tr -d '\\r' < /backup.sh > /tmp/backup.sh && exec sh /tmp/backup.sh"]
 
   caddy:

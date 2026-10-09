@@ -78,7 +78,6 @@ def apply_preset(db: Session, key: str) -> tuple[int, int]:
             )
             new_fields += 1
         elif in_template and existing.template_id is None:
-            # поле уже было создано (раньше наборы делали общие поля) — переносим его в шаблон
             existing.template_id = template.id
             db.commit()
 

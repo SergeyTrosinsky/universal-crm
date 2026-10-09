@@ -1,6 +1,5 @@
 import os
 
-# Тесты работают без CSRF-токенов; защита проверяется отдельно в tests/test_security.py.
 os.environ.setdefault("CSRF_ENABLED", "false")
 
 import pytest  # noqa: E402
@@ -57,7 +56,6 @@ def make_user(factory):
 
 @pytest.fixture()
 def client(factory):
-    # Без `with TestClient(...)` lifespan не запускается, поэтому реальная БД не затрагивается.
     app = create_app()
 
     def override_get_db():

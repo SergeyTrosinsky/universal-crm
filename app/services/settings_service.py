@@ -17,7 +17,7 @@ TERM_KEYS = ("pl", "sg", "acc")
 MAX_LEN = 60
 
 DEFAULTS: dict[str, str] = {
-    "app_name": "",  # пусто = APP_NAME из окружения
+    "app_name": "",
     "default_currency": "RUB",
     "client_pl": "Клиенты",
     "client_sg": "Клиент",
@@ -102,7 +102,7 @@ def update(db: Session, data: Mapping[str, Any]) -> dict[str, str]:
     clean = validate(data)
     existing = {row.key: row for row in db.scalars(select(AppSetting).where(AppSetting.key.in_(list(clean))))}
     for key, value in clean.items():
-        if value == DEFAULTS[key]:  # значение по умолчанию храним как «не задано»
+        if value == DEFAULTS[key]:
             if key in existing:
                 db.delete(existing[key])
         elif key in existing:
@@ -115,7 +115,7 @@ def update(db: Session, data: Mapping[str, Any]) -> dict[str, str]:
 
 def reset(db: Session) -> None:
     for row in db.scalars(select(AppSetting)):
-        if not row.key.startswith("_"):  # служебные метки не сбрасываем
+        if not row.key.startswith("_"):
             db.delete(row)
     db.commit()
 

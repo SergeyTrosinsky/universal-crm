@@ -22,7 +22,6 @@ FIELD_NAME = "csrf_token"
 HEADER_NAME = "x-csrf-token"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
 FORM_TYPES = ("application/x-www-form-urlencoded", "multipart/form-data")
-# Вход ещё не выполнен, cookie-сессии нет: эти адреса API проверять нечем.
 API_EXEMPT = ("/api/v1/auth/login", "/api/v1/auth/token")
 FORM_RE = re.compile(r"(<form\b[^>]*\bmethod=[\"']post[\"'][^>]*>)", re.IGNORECASE)
 FAILED = "Сессия устарела или запрос не прошёл проверку безопасности. Обновите страницу и повторите."
@@ -49,7 +48,6 @@ def inject(html: str, token: str) -> str:
 
 def _matches(request: Request, sent: str | None) -> bool:
     expected = request.session.get(SESSION_KEY)
-    # сравниваем байты: compare_digest для строк с не-ASCII символами падает с TypeError
     return bool(expected and sent) and secrets.compare_digest(str(expected).encode(), str(sent).encode())
 
 
@@ -63,7 +61,7 @@ async def verify_web(request: Request) -> None:
         return
     sent = request.headers.get(HEADER_NAME)
     if not sent and request.headers.get("content-type", "").lower().startswith(FORM_TYPES):
-        form = await request.form()  # результат кешируется — обработчик прочитает форму повторно
+        form = await request.form()
         value = form.get(FIELD_NAME)
         sent = value if isinstance(value, str) else None
     if not _matches(request, sent):
@@ -77,6 +75,6 @@ async def verify_api(request: Request) -> None:
     if request.headers.get("authorization") or request.url.path in API_EXEMPT:
         return
     if not request.cookies.get(get_settings().AUTH_COOKIE_NAME):
-        return  # без cookie запрос всё равно не пройдёт авторизацию
+        return
     if not _matches(request, request.headers.get(HEADER_NAME)):
         raise _forbidden()

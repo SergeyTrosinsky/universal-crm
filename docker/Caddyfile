@@ -1,5 +1,3 @@
-# HTTPS с автоматическим сертификатом Let's Encrypt для вашего домена (профиль "https").
-# Домен берётся из переменной DOMAIN в .env.docker; его A-запись должна указывать на этот сервер.
 {$DOMAIN} {
 	encode gzip
 	request_body {

@@ -26,7 +26,7 @@ DEFAULT_SECRET = "change-me-in-production"
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    ensure_schema()  # dev-удобство; в проде AUTO_CREATE_SCHEMA=false и `alembic upgrade head`
+    ensure_schema()
     with SessionLocal() as db:
         seed_defaults(db)
         admin = ensure_first_admin(db)
@@ -42,7 +42,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG, lifespan=lifespan)
     app.add_middleware(
-        SessionMiddleware,  # только для флеш-сообщений; авторизация — в отдельном JWT-cookie
+        SessionMiddleware,
         secret_key=settings.SECRET_KEY,
         session_cookie="crm_session",
         same_site="lax",
@@ -64,7 +64,6 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(StarletteHTTPException)
     async def http_error_handler(request: Request, exc: StarletteHTTPException):
-        # API и не-браузерные клиенты получают JSON, браузер — страницу ошибки.
         wants_html = "text/html" in request.headers.get("accept", "")
         if request.url.path.startswith("/api") or not wants_html:
             return await http_exception_handler(request, exc)

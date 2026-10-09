@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Обновление CRM на сервере: резервная копия -> новый код -> пересборка -> миграции (сами при старте).
-#   bash docker/update.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ENV_FILE="${ENV_FILE:-.env.docker}"

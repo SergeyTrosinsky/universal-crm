@@ -16,7 +16,6 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 def _get_or_404(db: Session, task_id: int, viewer: User) -> Task:
     task = task_service.get_task(db, task_id)
-    # Чужую задачу не раскрываем даже фактом существования
     if task is None or not task_service.has_access(viewer, task):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Задача не найдена")
     return task

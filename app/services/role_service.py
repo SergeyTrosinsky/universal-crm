@@ -31,7 +31,6 @@ def _clean_permissions(values: list[str]) -> list[str]:
     unknown = [v for v in values if v not in perms.ALL_PERMISSIONS]
     if unknown:
         raise RoleError(f"Неизвестные права: {', '.join(unknown)}")
-    # порядок как в каталоге, без дублей
     return [p for p in perms.ALL_PERMISSIONS if p in set(values)]
 
 

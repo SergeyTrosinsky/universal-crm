@@ -27,7 +27,6 @@ def field(client, **kw):
     assert resp.status_code == 201, resp.text
 
 
-# ------------------------------------------------------------------ клиенты
 def test_client_created_and_changes_are_logged(client, make_user):
     admin(client, make_user)
     field(client, label="VIN", code="vin")
@@ -48,7 +47,7 @@ def test_noop_update_adds_nothing(client, make_user):
     admin(client, make_user)
     cid = client.post("/api/v1/clients", json={"name": "Иван", "email": "i@example.com"}).json()["id"]
     assert client.patch(f"/api/v1/clients/{cid}", json={"name": "Иван", "email": "I@example.com"}).status_code == 200
-    assert len(activity(client, "clients", cid)) == 1  # только «создан»
+    assert len(activity(client, "clients", cid)) == 1
 
 
 def test_clearing_value_is_logged_as_dash(client, make_user):
@@ -60,7 +59,6 @@ def test_clearing_value_is_logged_as_dash(client, make_user):
     assert (change["label"], change["old"], change["new"]) == ("Госномер", "А1", "—")
 
 
-# ------------------------------------------------------------------ сделки
 def test_deal_status_amount_responsible_and_custom_fields(client, make_user):
     admin(client, make_user)
     emp = make_user("emp@example.com", role="employee", full_name="Борис")
@@ -87,13 +85,11 @@ def test_deal_status_amount_responsible_and_custom_fields(client, make_user):
     assert latest["Марка авто"] == ("Лада", "Kia")
     assert "Статус" not in latest
 
-    # повторная смена на тот же статус ничего не пишет
     count = len(activity(client, "deals", deal["id"]))
     client.post(f"/api/v1/deals/{deal['id']}/status", json={"status_id": statuses["won"]["id"]})
     assert len(activity(client, "deals", deal["id"])) == count
 
 
-# ------------------------------------------------------------------ заметки
 def test_notes_add_list_delete(client, make_user):
     admin(client, make_user)
     cid = client.post("/api/v1/clients", json={"name": "Иван"}).json()["id"]
@@ -101,7 +97,7 @@ def test_notes_add_list_delete(client, make_user):
     assert created.status_code == 201, created.text
     assert created.json()["body"] == "Позвонить в пятницу"
     items = activity(client, "clients", cid)
-    assert [i["type"] for i in items] == ["note", "event"]  # заметка новее события создания (или равна по времени)
+    assert [i["type"] for i in items] == ["note", "event"]
 
     assert client.post(f"/api/v1/clients/{cid}/notes", json={"body": "   "}).status_code in (422,)
     assert client.delete(f"/api/v1/clients/{cid}/notes/{created.json()['id']}").status_code == 204
@@ -147,7 +143,6 @@ def test_employee_cannot_see_history_of_foreign_deal(client, make_user):
     assert client.post(f"/api/v1/deals/{deal['id']}/notes", json={"body": "x"}).status_code == 404
 
 
-# ------------------------------------------------------------------ веб
 def test_web_cards_show_history_and_notes(client, make_user):
     admin(client, make_user)
     web_login(client, "admin@example.com")
@@ -168,7 +163,6 @@ def test_web_cards_show_history_and_notes(client, make_user):
     dpage = client.get(f"/deals/{deal['id']}")
     assert "Ждём запчасти" in dpage.text and "История и заметки" in dpage.text
 
-    # пустая заметка — сообщение об ошибке, ничего не создаётся
     assert client.post(f"/clients/{cid}/notes", data={"body": "  "}).status_code == 303
     assert client.get(f"/clients/{cid}").text.count("Любит кофе") == 1
 
@@ -190,7 +184,6 @@ def test_web_status_change_and_note_delete(client, make_user, factory):
     assert client.post(f"/deals/{deal['id']}/notes/{note_id}/delete").status_code == 404
 
 
-# ------------------------------------------------------------------ удаление и импорт
 def test_deleting_client_removes_history_and_notes(client, make_user, factory):
     admin(client, make_user)
     cid = client.post("/api/v1/clients", json={"name": "Иван"}).json()["id"]

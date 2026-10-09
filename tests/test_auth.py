@@ -8,7 +8,6 @@ from app.services.user_service import UserError
 from tests.conftest import PASSWORD, api_login
 
 
-# ------------------------------------------------------------------ API: вход
 def test_login_returns_token_and_me_works_by_cookie(client, make_user):
     make_user("anna@example.com", full_name="Анна")
     api_login(client, "anna@example.com")
@@ -78,7 +77,6 @@ def test_token_dies_when_user_deactivated(client, factory, make_user):
     assert client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
 
 
-# ------------------------------------------------------------ API: права доступа
 def test_users_endpoint_requires_permission(client, make_user):
     make_user("anna@example.com", role="employee")
     make_user("boss@example.com", role="admin")
@@ -130,7 +128,6 @@ def test_admin_cannot_deactivate_self(client, make_user):
     assert resp.status_code == 400
 
 
-# ------------------------------------------------------------- сервисы: правила
 def test_non_admin_cannot_touch_or_create_admins(factory, make_user):
     """Пользователь с правом users:manage, но без полного доступа, не может ни править
     администраторов, ни выдавать роль администратора (повышение прав)."""
@@ -147,15 +144,14 @@ def test_non_admin_cannot_touch_or_create_admins(factory, make_user):
         hr = user_service.create_user(
             s, email="hr@example.com", full_name="HR", password=PASSWORD, role_id=hr_role_id
         )
-        with pytest.raises(UserError):  # править администратора нельзя
+        with pytest.raises(UserError):
             user_service.update_user(s, s.get(User, admin_id), actor=hr, role_id=employee_role_id)
-        with pytest.raises(UserError):  # назначить роль администратора нельзя
+        with pytest.raises(UserError):
             user_service.update_user(s, s.get(User, employee_id), actor=hr, role_id=admin_role_id)
-        with pytest.raises(UserError):  # создать администратора нельзя
+        with pytest.raises(UserError):
             user_service.create_user(
                 s, email="x@example.com", full_name="X", password=PASSWORD, role_id=admin_role_id, actor=hr
             )
-        # а обычного сотрудника править можно
         renamed = user_service.update_user(s, s.get(User, employee_id), actor=hr, full_name="Анна К.")
         assert renamed.full_name == "Анна К."
 
@@ -165,9 +161,8 @@ def test_admin_roles_changes_are_guarded(factory, make_user):
     admin2 = make_user("a2@example.com", role="admin")
     with factory() as s:
         employee_role_id = s.scalar(select(Role).where(Role.code == "employee")).id
-        with pytest.raises(UserError):  # свою роль менять нельзя
+        with pytest.raises(UserError):
             user_service.update_user(s, s.get(User, admin1), actor=s.get(User, admin1), role_id=employee_role_id)
-        # другого администратора понизить можно, пока остаётся ещё один
         user_service.update_user(s, s.get(User, admin2), actor=s.get(User, admin1), role_id=employee_role_id)
         assert s.get(User, admin2).role.code == "employee"
 
@@ -181,19 +176,18 @@ def test_ensure_first_admin_only_on_empty_db(factory, monkeypatch):
     with factory() as s:
         first = user_service.ensure_first_admin(s)
         assert first is not None and first.role.code == "admin"
-        assert user_service.ensure_first_admin(s) is None  # второй раз ничего не создаёт
+        assert user_service.ensure_first_admin(s) is None
 
 
-# --------------------------------------------------------------------- роли
 def test_role_rules(factory, make_user):
     make_user("anna@example.com", role="employee")
     with factory() as s:
         employee = s.scalar(select(Role).where(Role.code == "employee"))
         admin = s.scalar(select(Role).where(Role.code == "admin"))
         with pytest.raises(RoleError):
-            role_service.delete_role(s, employee)  # системная
+            role_service.delete_role(s, employee)
         with pytest.raises(RoleError):
-            role_service.update_role(s, admin, permissions=["clients:read"])  # права админа фиксированы
+            role_service.update_role(s, admin, permissions=["clients:read"])
 
         custom = role_service.create_role(
             s, code="master", name="Мастер", description="Салон", permissions=["clients:read", "clients:read"]
@@ -206,7 +200,6 @@ def test_role_rules(factory, make_user):
         role_service.delete_role(s, custom)
 
 
-# ------------------------------------------------------------------- веб-страницы
 def test_web_redirects_anonymous_to_login(client):
     resp = client.get("/profile")
     assert resp.status_code == 303
@@ -287,7 +280,7 @@ def test_web_change_password_keeps_session_alive(client, make_user):
         "current_password": PASSWORD, "new_password": "new-password-1", "confirm_password": "new-password-1",
     })
     assert ok.status_code == 303
-    assert client.get("/profile").status_code == 200  # выданный новый токен принят
+    assert client.get("/profile").status_code == 200
 
     client.post("/logout")
     relog = client.post("/login", data={"email": "anna@example.com", "password": "new-password-1", "next": "/"})
@@ -299,3 +292,20 @@ def test_unknown_page_renders_html_error_for_browsers_and_json_for_api(client):
     assert html.status_code == 404 and "Страница не найдена" in html.text
     api = client.get("/api/v1/nope")
     assert api.status_code == 404 and api.json()["detail"] == "Not Found"
+
+
+def test_seed_demo_users_cli(factory, monkeypatch):
+    from sqlalchemy import select
+
+    from app import cli
+    from app.models import User
+
+    monkeypatch.setattr(cli, "SessionLocal", factory)
+    monkeypatch.setattr(cli, "ensure_schema", lambda: None)
+    args = type("A", (), {"password": cli.DEMO_PASSWORD})()
+    cli.cmd_seed_demo_users(args)
+    cli.cmd_seed_demo_users(args)
+    with factory() as s:
+        users = list(s.scalars(select(User)))
+        assert len(users) == len(cli.DEMO_USERS)
+        assert {u.role.code for u in users} == {"admin", "manager", "employee"}

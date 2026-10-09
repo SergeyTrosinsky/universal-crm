@@ -11,7 +11,6 @@ from app.models import CustomField, CustomValue, DealTemplate, EntityType, Field
 from app.services.errors import ValidationFailed
 from app.services.slug import slugify
 
-# латиница/цифры, слова через одиночное «_» (двойное «__» зарезервировано под суффиксы фильтров)
 CODE_RE = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
 CHOICE_TYPES = {FieldType.SELECT, FieldType.MULTISELECT}
 MAX_OPTIONS = 100
@@ -63,7 +62,6 @@ def _clean_text(value: object, limit: int, key: str, label: str) -> str | None:
     return text or None
 
 
-# ------------------------------------------------------------------ чтение
 def list_fields(
     db: Session, entity_type: EntityType | None = None, *, only_active: bool = False
 ) -> list[CustomField]:
@@ -86,7 +84,6 @@ def value_counts(db: Session) -> dict[int, int]:
     return {field_id: count for field_id, count in rows}
 
 
-# ------------------------------------------------------------------ запись
 def _unique_code(db: Session, entity_type: EntityType, base: str) -> str:
     taken = set(db.scalars(select(CustomField.code).where(CustomField.entity_type == entity_type)))
     candidate, n = base, 2
@@ -230,7 +227,6 @@ def delete_field(db: Session, field: CustomField) -> int:
     return count
 
 
-# ----------------------------------------------------------------- порядок
 def _normalize_order(db: Session, entity_type: EntityType) -> list[CustomField]:
     fields = list_fields(db, entity_type)
     for index, f in enumerate(fields):

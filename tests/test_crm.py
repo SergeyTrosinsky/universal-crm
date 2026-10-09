@@ -15,7 +15,6 @@ from app.services.slug import slugify
 from tests.conftest import PASSWORD, api_login
 
 
-# ------------------------------------------------------------------ вспомогательное
 def admin_api(client, make_user, email="admin@example.com"):
     make_user(email, role="admin", full_name="Админ")
     api_login(client, email)
@@ -35,7 +34,6 @@ def make_field(client, **kw):
     return resp.json()
 
 
-# ------------------------------------------------------------------ утилиты
 def test_slugify_transliterates():
     assert slugify("Марка авто") == "marka_avto"
     assert slugify("Дата посещения") == "data_posescheniya"
@@ -58,7 +56,6 @@ def test_parse_date_formats():
         parse_date("32.13.2025")
 
 
-# ------------------------------------------------------------------ API: кастомные поля
 def test_field_crud_and_immutable_code(client, make_user):
     admin_api(client, make_user)
     f = make_field(client, label="Марка авто", show_in_list=True)
@@ -80,7 +77,6 @@ def test_field_duplicate_code_rejected(client, make_user):
     make_field(client, label="VIN", code="vin")
     resp = client.post("/api/v1/custom-fields", json={"entity_type": "client", "label": "Другой", "field_type": "text", "code": "vin"})
     assert resp.status_code == 422
-    # тот же код для другой сущности допустим
     make_field(client, label="VIN", code="vin", entity_type="deal")
 
 
@@ -109,12 +105,11 @@ def test_field_reorder_and_move(client, make_user):
 def test_fields_manage_requires_permission(client, make_user):
     make_user("mgr@example.com", role="manager")
     api_login(client, "mgr@example.com")
-    assert client.get("/api/v1/custom-fields").status_code == 200  # читать можно
+    assert client.get("/api/v1/custom-fields").status_code == 200
     resp = client.post("/api/v1/custom-fields", json={"entity_type": "client", "label": "X", "field_type": "text"})
     assert resp.status_code == 403
 
 
-# ------------------------------------------------------------------ API: статусы
 def test_status_crud_and_rules(client, make_user, factory):
     admin_api(client, make_user)
     statuses = client.get("/api/v1/statuses").json()
@@ -155,7 +150,6 @@ def test_status_reorder(client, make_user):
     assert [s["id"] for s in resp.json()] == rev
 
 
-# ------------------------------------------------------------------ API: клиенты
 def test_client_with_custom_fields_and_search(client, make_user):
     admin_api(client, make_user)
     make_field(client, label="VIN", code="vin")
@@ -172,14 +166,10 @@ def test_client_with_custom_fields_and_search(client, make_user):
 
     by_vin = client.get("/api/v1/clients", params={"q": "xta2109"}).json()
     assert by_vin["total"] == 1
-    # регистронезависимый поиск по кириллице
     assert client.get("/api/v1/clients", params={"q": "петров"}).json()["total"] == 1
     assert client.get("/api/v1/clients", params={"q": "СИДОРОВА"}).json()["total"] == 1
-    # по цифрам телефона
     assert client.get("/api/v1/clients", params={"q": "9991234567"}).json()["total"] == 1
-    # по значению кастомного поля-госномера
     assert client.get("/api/v1/clients", params={"q": "а123вс"}).json()["total"] == 1
-    # фильтры по кастомным полям
     assert client.get("/api/v1/clients", params={"cf_vin": "ZZZ"}).json()["total"] == 1
     assert client.get("/api/v1/clients", params={"cf_mileage__from": 100000}).json()["total"] == 1
     assert client.get("/api/v1/clients", params={"cf_mileage__to": 1000}).json()["total"] == 0
@@ -194,7 +184,7 @@ def test_client_patch_partial_custom_and_unknown_key(client, make_user):
     upd = client.patch(f"/api/v1/clients/{cl['id']}", json={"custom": {"vin": "NEW"}})
     assert upd.status_code == 200, upd.text
     assert upd.json()["custom"]["vin"] == "NEW"
-    assert upd.json()["custom"]["plate"] == "B"  # нетронутое сохранилось
+    assert upd.json()["custom"]["plate"] == "B"
 
     cleared = client.patch(f"/api/v1/clients/{cl['id']}", json={"custom": {"plate": None}})
     assert cleared.status_code == 200
@@ -233,7 +223,7 @@ def test_inactive_field_hidden_from_values(client, make_user):
     client.patch(f"/api/v1/custom-fields/{f['id']}", json={"is_active": False})
     assert "vin" not in client.get(f"/api/v1/clients/{cl['id']}").json()["custom"]
     client.patch(f"/api/v1/custom-fields/{f['id']}", json={"is_active": True})
-    assert client.get(f"/api/v1/clients/{cl['id']}").json()["custom"]["vin"] == "A"  # данные не потеряны
+    assert client.get(f"/api/v1/clients/{cl['id']}").json()["custom"]["vin"] == "A"
 
 
 def test_delete_client_removes_deals_and_values(client, make_user, factory):
@@ -255,7 +245,6 @@ def test_employee_cannot_delete_client(client, make_user):
     assert client.delete(f"/api/v1/clients/{cl.json()['id']}").status_code == 403
 
 
-# ------------------------------------------------------------------ API: сделки
 def test_deal_defaults_and_status_closed_at(client, make_user):
     admin_api(client, make_user)
     cl = client.post("/api/v1/clients", json={"name": "Иван"}).json()
@@ -265,7 +254,7 @@ def test_deal_defaults_and_status_closed_at(client, make_user):
     assert d["status"]["is_default"] is True
     assert d["closed_at"] is None
     assert Decimal(d["amount"]) == Decimal("1500.50")
-    assert d["deal_date"]  # сегодняшняя дата в часовом поясе приложения
+    assert d["deal_date"]
     assert d["responsible"] is not None
 
     statuses = {s["code"]: s for s in client.get("/api/v1/statuses").json()}
@@ -275,7 +264,7 @@ def test_deal_defaults_and_status_closed_at(client, make_user):
     assert closed_at is not None
 
     again = client.post(f"/api/v1/deals/{d['id']}/status", json={"status_id": statuses["lost"]["id"]})
-    assert again.json()["closed_at"] == closed_at  # момент закрытия не перезаписывается
+    assert again.json()["closed_at"] == closed_at
 
     reopened = client.post(f"/api/v1/deals/{d['id']}/status", json={"status_id": statuses["in_progress"]["id"]})
     assert reopened.json()["closed_at"] is None
@@ -324,7 +313,6 @@ def test_deal_kind_filter(client, make_user):
     assert client.get("/api/v1/deals", params={"kind": "open"}).json()["total"] == 1
 
 
-# ------------------------------------------------------------------ пресеты и сервисы
 def test_presets_apply_is_idempotent(factory):
     with factory() as s:
         new_fields, new_statuses = presets.apply_preset(s, "auto")
@@ -356,7 +344,6 @@ def test_coerce_errors_use_cf_prefix(factory, make_user):
         assert "cf_year" in exc.value.errors
 
 
-# ------------------------------------------------------------------ веб-интерфейс
 def test_pages_require_login(client):
     for url in ("/clients", "/deals", "/settings/fields", "/settings/statuses"):
         resp = client.get(url)
@@ -428,7 +415,7 @@ def test_web_deal_flow(client, make_user, factory):
 
     form = client.get(f"/deals/new?client_id={client_id}")
     assert form.status_code == 200
-    assert "Анна" in form.text and "RUB" in form.text  # клиент подставлен, валюты есть
+    assert "Анна" in form.text and "RUB" in form.text
 
     created = client.post("/deals/new", data={
         "title": "Консультация", "client_id": str(client_id), "amount": "2 500,50",

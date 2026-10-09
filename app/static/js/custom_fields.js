@@ -1,4 +1,3 @@
-// Форма поля: блок «Варианты» нужен только для типов select / multiselect.
 (function () {
   'use strict';
   var typeSelect = document.getElementById('field_type');

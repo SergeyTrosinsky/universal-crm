@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Первичная настройка и запуск CRM на сервере одной командой (из папки проекта):
-#   bash docker/setup.sh
-# Создаёт .env.docker со случайными паролями, спрашивает домен и email администратора, запускает контейнеры.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -25,7 +22,7 @@ app_name="${app_name:-Universal CRM}"
 read -r -p "Часовой пояс [Europe/Moscow]: " tz
 tz="${tz:-Europe/Moscow}"
 
-admin_password="$(rand 9)"   # 18 символов, только 0-9a-f; сменить можно в профиле после входа
+admin_password="$(rand 9)"
 
 if [ -n "$domain" ]; then
   bind="127.0.0.1"; secure="true"; proxy="true"

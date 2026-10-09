@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from app.models.custom_value import CustomValue
     from app.models.deal_template import DealTemplate
 
-# В какую типизированную колонку custom_values пишется значение поля данного типа.
 FIELD_STORAGE: dict[FieldType, str] = {
     FieldType.TEXT: "value_text",
     FieldType.TEXTAREA: "value_text",
@@ -39,18 +38,17 @@ class CustomField(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     entity_type: Mapped[EntityType] = mapped_column(str_enum(EntityType, "custom_entity"), index=True)
-    code: Mapped[str] = mapped_column(String(64))           # slug: "vin", "car_brand"
-    label: Mapped[str] = mapped_column(String(150))         # подпись в UI: "VIN"
+    code: Mapped[str] = mapped_column(String(64))
+    label: Mapped[str] = mapped_column(String(150))
     field_type: Mapped[FieldType] = mapped_column(str_enum(FieldType, "custom_field_type"))
-    options: Mapped[list[Any]] = mapped_column(JSONType, default=list)  # варианты для select/multiselect
+    options: Mapped[list[Any]] = mapped_column(JSONType, default=list)
     placeholder: Mapped[str | None] = mapped_column(String(255))
     help_text: Mapped[str | None] = mapped_column(Text)
     is_required: Mapped[bool] = mapped_column(Boolean, default=False)
     is_filterable: Mapped[bool] = mapped_column(Boolean, default=True)
-    show_in_list: Mapped[bool] = mapped_column(Boolean, default=False)  # колонка в таблице
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)      # скрыть без потери данных
+    show_in_list: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
-    # Только для полей сделок: поле показывается лишь у сделок с этим шаблоном; NULL — общее поле.
     template_id: Mapped[int | None] = mapped_column(
         ForeignKey("deal_templates.id", ondelete="SET NULL"), index=True
     )

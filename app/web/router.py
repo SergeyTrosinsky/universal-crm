@@ -9,7 +9,7 @@ from app.web.pages import (
 web_router = APIRouter(include_in_schema=False, dependencies=[Depends(csrf.verify_web)])
 web_router.include_router(auth.router)
 web_router.include_router(profile.router)
-web_router.include_router(import_export.router)  # раньше clients/deals: «/clients/export» не должен попасть под «/clients/{id}»
+web_router.include_router(import_export.router)
 web_router.include_router(clients.router)
 web_router.include_router(deals.router)
 web_router.include_router(fields.router)

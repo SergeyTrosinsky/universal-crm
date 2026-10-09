@@ -32,12 +32,10 @@ from app.services.errors import ValidationFailed
 EMAIL_DOMAIN = "kontinent.demo"
 COMPANY_NAME = "Континент"
 
-# названия статусов сделок
 S_NEW, S_WORK, S_PAY, S_DONE, S_CANCEL = (
     "Новая заявка", "В работе", "Ожидает оплаты", "Выполнен", "Отменён",
 )
 
-# ключ -> (email, ФИО, код роли)
 USERS: dict[str, tuple[str, str, str]] = {
     "alexey": (f"director@{EMAIL_DOMAIN}", "Алексей Орлов", "admin"),
     "marina": (f"marina@{EMAIL_DOMAIN}", "Марина Соколова", "manager"),
@@ -62,35 +60,34 @@ MASTER_PERMISSIONS = [
 ]
 
 
-# ----------------------------------------------------------------------------- описание данных
 @dataclass
 class ClientSpec:
     key: str
     name: str
-    type: str  # person | company
+    type: str
     owner: str
     phone: str
     email: str | None = None
     address: str | None = None
     custom: dict[str, Any] = field(default_factory=dict)
-    notes: list[tuple[str, str]] = field(default_factory=list)  # (автор, текст)
-    updates: list[tuple[int, dict[str, str], str]] = field(default_factory=list)  # (дней назад, данные, кто)
+    notes: list[tuple[str, str]] = field(default_factory=list)
+    updates: list[tuple[int, dict[str, str], str]] = field(default_factory=list)
 
 
 @dataclass
 class DealSpec:
     title: str
     client: str
-    template: str | None  # auto | beauty | None
+    template: str | None
     amount: int
     days_ago: int
     responsible: str
     creator: str
-    path: list[str] = field(default_factory=list)  # статусы после «Новая заявка»
-    span: float = 0.0  # сколько дней проходит от создания до последнего статуса
+    path: list[str] = field(default_factory=list)
+    span: float = 0.0
     custom: dict[str, Any] = field(default_factory=dict)
     edits: list[tuple[float, dict[str, str], dict[str, Any], str]] = field(default_factory=list)
-    notes: list[tuple[float, str, str]] = field(default_factory=list)  # (доля пути, автор, текст)
+    notes: list[tuple[float, str, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -100,9 +97,9 @@ class TaskSpec:
     creator: str
     priority: str
     status: str
-    due_days: float  # срок: через N дней от сейчас (отрицательное = просрочено)
+    due_days: float
     created_days_ago: float
-    deal: str | None = None  # название сделки
+    deal: str | None = None
     client: str | None = None
     description: str | None = None
 
@@ -187,7 +184,6 @@ def _ago(days: int) -> str:
 
 def build_deals() -> list[DealSpec]:
     return [
-        # ------------------------------------------------------------------ автосервис
         DealSpec(
             "ТО-2 Skoda Octavia", "volkov", "auto", 16200, 62, "denis", "marina", [S_WORK, S_PAY, S_DONE], 3,
             {CAR_BRAND: "Skoda Octavia", MILEAGE: 61200, WORK: "Плановое ТО", "payment": "Карта"},
@@ -239,7 +235,6 @@ def build_deals() -> list[DealSpec]:
             "Покраска дисков", "nikitin", "auto", 15000, 70, "igor", "igor", [S_WORK, S_DONE], 4,
             {CAR_BRAND: "Toyota Camry", WORK: "Кузовной ремонт", "payment": "Карта"},
         ),
-        # ------------------------------------------------------------------ салон красоты
         DealSpec(
             "Окрашивание и стрижка", "pavlova", "beauty", 7800, 35, "anna", "marina", [S_WORK, S_DONE], 1,
             {MASTER: "Анна", SERVICE: "Окрашивание", VISIT: _ago(34), DEPOSIT: True, "payment": "Карта"},
@@ -283,7 +278,6 @@ def build_deals() -> list[DealSpec]:
             "Макияж", "kuznetsova", "beauty", 3500, 130, "olga", "marina", [S_WORK, S_DONE], 1,
             {MASTER: "Ольга", SERVICE: "Макияж", VISIT: _ago(129), DEPOSIT: False, "payment": "Карта"},
         ),
-        # ------------------------------------------------------------------ стандартные (без шаблона)
         DealSpec(
             "Корпоративный абонемент на маникюр (10 сотрудниц)", "romashka", None, 65000, 15, "marina", "marina",
             [S_WORK], 8, {"payment": "Безналичный расчёт"},
@@ -341,7 +335,6 @@ TASKS = [
 ]
 
 
-# ----------------------------------------------------------------------------- вспомогательное
 class _Stamper:
     """Журнал и заметки создаются «сейчас»; этот помощник переписывает им время на нужное прошлое."""
 
@@ -374,7 +367,6 @@ class _Clock:
         return min(moment, self.now - timedelta(minutes=1))
 
 
-# ----------------------------------------------------------------------------- этапы
 def reset_business_data(db: Session) -> None:
     """Удаляет пользователей, клиентов, сделки, задачи, поля, шаблоны, свои роли и общие настройки."""
     for model in (ActivityEvent, Note, Task, CustomValue, Deal, Client, CustomField, DealTemplate, User):
@@ -406,7 +398,6 @@ def setup_statuses(db: Session) -> dict[str, Status]:
 
     by_name = {s.name: s for s in status_service.list_statuses(db)}
     status_service.update_status(db, by_name[S_NEW], is_default=True)
-    # лишние статусы (если их кто-то добавлял) убираем: сделок уже нет
     keep = {S_NEW, S_WORK, S_PAY, S_DONE, S_CANCEL}
     for status in list(status_service.list_statuses(db)):
         if status.name not in keep:
@@ -449,15 +440,12 @@ def setup_settings_and_fields(db: Session, with_vin: bool) -> dict[str, DealTemp
         db, name="Салон красоты", description="Запись клиента к мастеру: мастер, услуга, дата посещения."
     )
     cf = custom_field_service.create_field
-    # клиенты
     cf(db, entity_type="client", label="Откуда узнал", field_type=FieldType.SELECT, code="source",
        options=["Рекомендация", "Сайт", "Соцсети", "Проходили мимо", "Повторное обращение"], show_in_list=True)
     cf(db, entity_type="client", label="День рождения", field_type=FieldType.DATE, code="birthday")
     cf(db, entity_type="client", label="Согласие на рассылку", field_type=FieldType.BOOLEAN, code="marketing")
-    # общее для всех заказов
     cf(db, entity_type="deal", label="Способ оплаты", field_type=FieldType.SELECT, code="payment",
        options=["Карта", "Наличные", "Безналичный расчёт"])
-    # автосервис (VIN и госномер намеренно НЕ создаём: в видео их добавляют вживую)
     cf(db, entity_type="deal", label="Марка и модель авто", field_type=FieldType.TEXT, code=CAR_BRAND,
        template_id=auto.id)
     cf(db, entity_type="deal", label="Пробег, км", field_type=FieldType.INTEGER, code=MILEAGE, template_id=auto.id)
@@ -466,7 +454,6 @@ def setup_settings_and_fields(db: Session, with_vin: bool) -> dict[str, DealTemp
     if with_vin:
         cf(db, entity_type="deal", label="VIN", field_type=FieldType.TEXT, code="vin", template_id=auto.id)
         cf(db, entity_type="deal", label="Госномер", field_type=FieldType.TEXT, code="plate", template_id=auto.id)
-    # салон красоты
     cf(db, entity_type="deal", label="Мастер", field_type=FieldType.SELECT, code=MASTER, template_id=beauty.id,
        options=["Анна", "Мария", "Ольга"])
     cf(db, entity_type="deal", label="Услуга", field_type=FieldType.SELECT, code=SERVICE, template_id=beauty.id,
@@ -542,7 +529,6 @@ def create_deals(
         db.commit()
         deal_id = deal.id
 
-        # шаги жизни заказа: смена статусов, правки и заметки — по порядку «доли пути»
         steps: list[tuple[float, int, str, Any]] = []
         for index, name in enumerate(spec.path):
             steps.append(((index + 1) / (len(spec.path) + 1), 0, "status", name))
@@ -611,7 +597,6 @@ def create_tasks(
     return out
 
 
-# ----------------------------------------------------------------------------- точка входа
 def run_scenario(db: Session, *, password: str, with_vin: bool = False) -> dict[str, Any]:
     """Полный сброс и наполнение. Возвращает сводку для вывода в консоль."""
     reset_business_data(db)

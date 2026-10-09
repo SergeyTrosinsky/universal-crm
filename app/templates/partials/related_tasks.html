@@ -1,4 +1,3 @@
-{# Блок «Задачи» в карточке клиента или сделки. tasks — список или None (нет права), new_url — ссылка на создание #}
 {% from "partials/task_badges.html" import priority_badge, due_label %}
 {% macro related_tasks(tasks, new_url, all_url) %}
   {% if tasks is not none %}

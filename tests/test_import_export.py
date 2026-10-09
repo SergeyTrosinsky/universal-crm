@@ -54,7 +54,6 @@ def login_admin(client, make_user, email="admin@example.com"):
     web_login(client, email)
 
 
-# ------------------------------------------------------------------ клиенты: проверка и загрузка
 def test_clients_import_checks_first_then_loads(client, make_user, factory):
     login_admin(client, make_user)
     with factory() as s:
@@ -78,7 +77,7 @@ def test_clients_import_checks_first_then_loads(client, make_user, factory):
     assert "Ошибки (4)" in preview.text
     for text in ("Некорректный телефон", "Некорректный email", "Выберите значение из списка", "допустимо «Физлицо»"):
         assert text in preview.text
-    with factory() as s:  # предпросмотр ничего не пишет
+    with factory() as s:
         assert s.scalars(select(Client)).all() == []
 
     done = confirm(client, "clients", token_of(preview))
@@ -86,10 +85,9 @@ def test_clients_import_checks_first_then_loads(client, make_user, factory):
     assert "создано: 2" in client.get("/clients").text
     with factory() as s:
         clients = {c.name: c for c in s.scalars(select(Client))}
-        assert set(clients) == {"Анна", "ООО Ромашка"}  # дубль по телефону пропущен
+        assert set(clients) == {"Анна", "ООО Ромашка"}
         assert clients["Анна"].custom[source] == "Сайт" and clients["Анна"].owner_id is not None
         assert clients["ООО Ромашка"].type.value == "company"
-    # токен одноразовый
     again = confirm(client, "clients", token_of(preview))
     assert again.status_code == 303 and again.headers["location"] == "/import/clients"
 
@@ -103,7 +101,7 @@ def test_clients_import_update_mode_does_not_erase_with_blank_cells(client, make
     )
     data = csv_file([["Имя", "Email", "Компания", "Адрес"], ["Анна Новая", "ANNA@example.com", "Новая", ""]])
 
-    skipped = upload(client, "clients", "c.csv", data)  # по умолчанию повторы пропускаются
+    skipped = upload(client, "clients", "c.csv", data)
     assert 'name="token"' not in skipped.text and "уже есть" in skipped.text
 
     preview = upload(client, "clients", "c.csv", data, duplicates="update")
@@ -158,7 +156,7 @@ def test_import_file_level_problems(client, make_user):
     assert upload(client, "clients", "a.xlsx", b"not a zip").status_code == 400
     old = upload(client, "clients", "a.xls", b"x")
     assert old.status_code == 400 and "Старый формат" in old.text
-    assert client.post("/import/clients", data={}).status_code == 400  # файл не выбран
+    assert client.post("/import/clients", data={}).status_code == 400
 
     for bad in ("0" * 32, "../../etc/passwd", ""):
         resp = confirm(client, "clients", bad)
@@ -182,7 +180,6 @@ def test_confirm_works_only_for_the_user_who_uploaded(client, make_user, factory
         assert [c.name for c in s.scalars(select(Client))] == ["Анна"]
 
 
-# ------------------------------------------------------------------ сделки
 def test_deals_import_links_clients_statuses_and_templates(client, make_user, factory):
     login_admin(client, make_user)
     with factory() as s:
@@ -216,7 +213,7 @@ def test_deals_import_links_clients_statuses_and_templates(client, make_user, fa
         deals = {d.title: d for d in s.scalars(select(Deal))}
         assert set(deals) == {"Замена масла", "Диагностика", "Стандарт"}
         oil = deals["Замена масла"]
-        assert oil.client.name == "Анна"  # 8 916… и +7 916… — один телефон
+        assert oil.client.name == "Анна"
         assert (oil.amount, oil.deal_date) == (Decimal("1500.50"), date(2026, 3, 5))
         assert oil.status.name == "Приём" and oil.template.name == "Автосервис"
         assert {"Toyota", "XW1"} <= set(oil.custom.values())
@@ -230,8 +227,8 @@ def test_deals_import_skips_repeats_unless_allowed(client, make_user, factory):
     rows = [
         ["Название", "Email клиента", "Сумма", "Дата"],
         ["Замена масла", "anna@example.com", "1500", "05.03.2026"],
-        ["ЗАМЕНА МАСЛА", "anna@example.com", "1 500,00", "05.03.2026"],  # тот же заказ в файле дважды
-        ["Замена масла", "anna@example.com", "1600", "05.03.2026"],      # другая сумма — другая запись
+        ["ЗАМЕНА МАСЛА", "anna@example.com", "1 500,00", "05.03.2026"],
+        ["Замена масла", "anna@example.com", "1600", "05.03.2026"],
     ]
     data = csv_file(rows)
 
@@ -241,13 +238,11 @@ def test_deals_import_skips_repeats_unless_allowed(client, make_user, factory):
     with factory() as s:
         assert len(s.scalars(select(Deal)).all()) == 2
 
-    # повторная загрузка того же файла ничего не добавляет
     again = upload(client, "deals", "d.csv", data)
     assert 'name="token"' not in again.text
     with factory() as s:
         assert len(s.scalars(select(Deal)).all()) == 2
 
-    # осознанный режим «загрузить всё равно»
     forced = upload(client, "deals", "d.csv", data, duplicates="allow")
     confirm(client, "deals", token_of(forced))
     with factory() as s:
@@ -285,7 +280,6 @@ def test_employee_import_cannot_assign_and_exports_only_own_deals(client, make_u
     assert "Моя" in text and "Менеджерская" in text
 
 
-# ------------------------------------------------------------------ экспорт и шаблоны
 def sheet_rows(content):
     ws = load_workbook(io.BytesIO(content), read_only=True).worksheets[0]
     return [list(row) for row in ws.iter_rows(values_only=True)]
@@ -313,11 +307,11 @@ def test_export_respects_filters_and_includes_custom_fields(client, make_user, f
     csv_all = client.get("/deals/export?format=csv").content.decode("utf-8-sig")
     assert "Первая" in csv_all and "Вторая" in csv_all and csv_all.splitlines()[0].startswith("Название;Клиент;")
 
-    companies = sheet_rows(client.get("/clients/export?type=company").content)  # xlsx по умолчанию
+    companies = sheet_rows(client.get("/clients/export?type=company").content)
     assert [r[1] for r in companies[1:]] == ["ООО Ромашка"] and companies[0][-1] == "Источник"
     assert companies[1][0] == "Компания"
 
-    page = client.get("/clients")  # в списке есть меню с учётом текущих фильтров
+    page = client.get("/clients")
     assert "/clients/export?format=xlsx" in page.text and "/import/clients" in page.text
     assert "type=company&amp;format=csv" in client.get("/clients?type=company").text
 
@@ -339,7 +333,6 @@ def test_templates_have_headers_for_every_field(client, make_user, factory):
     csv_text = client.get("/import/clients/template?format=csv").content.decode("utf-8-sig")
     assert csv_text.splitlines()[0].startswith("Тип;Имя;Компания;Email;Телефон;")
 
-    # скачанный шаблон сразу пригоден: пустой файл проверяется без ошибок формата
     assert upload(client, "deals", "t.xlsx", resp.content).status_code == 200
 
 
@@ -365,7 +358,7 @@ def test_export_then_import_keeps_every_field_type(client, make_user, factory, f
         },
     )
     assert created.status_code == 201, created.text
-    before = client.get(f"/api/v1/clients/{created.json()['id']}").json()  # как лежит в БД, а не «сырой» ответ создания
+    before = client.get(f"/api/v1/clients/{created.json()['id']}").json()
     exported = client.get(f"/clients/export?format={fmt}")
     assert client.delete(f"/api/v1/clients/{before['id']}").status_code == 204
 
@@ -377,7 +370,6 @@ def test_export_then_import_keeps_every_field_type(client, make_user, factory, f
         assert after[key] == before[key], key
 
 
-# ------------------------------------------------------------------ права и защита
 def test_permissions(client, make_user, factory):
     make_user("admin@example.com", role="admin")
     with factory() as s:
@@ -385,7 +377,7 @@ def test_permissions(client, make_user, factory):
             s, code="viewer", name="Просмотр", description=None, permissions=["clients:read", "deals:read"]
         )
     make_user("viewer@example.com", role="viewer")
-    assert client.get("/import/clients", follow_redirects=False).status_code in (302, 303)  # без входа
+    assert client.get("/import/clients", follow_redirects=False).status_code in (302, 303)
     assert client.get("/clients/export").status_code in (302, 303)
 
     web_login(client, "viewer@example.com")
@@ -393,14 +385,14 @@ def test_permissions(client, make_user, factory):
     assert client.get("/import/deals/template").status_code == 403
     assert upload(client, "clients", "a.csv", csv_file([["Имя"], ["Анна"]])).status_code == 403
     assert confirm(client, "clients", "0" * 32).status_code == 403
-    assert client.get("/clients/export").status_code == 200  # просмотр даёт выгрузку
+    assert client.get("/clients/export").status_code == 200
     assert client.get("/deals/export?format=csv").status_code == 200
     page = client.get("/clients").text
-    assert "/clients/export" in page and "/import/clients" not in page  # пункта «Загрузить» нет
+    assert "/clients/export" in page and "/import/clients" not in page
 
 
 def test_upload_needs_csrf_token_when_protection_is_on(client, make_user, monkeypatch):
-    login_admin(client, make_user)  # вход выполняется до включения защиты
+    login_admin(client, make_user)
     monkeypatch.setattr(get_settings(), "CSRF_ENABLED", True)
     data = csv_file([["Имя"], ["Анна"]])
     assert upload(client, "clients", "a.csv", data).status_code == 403

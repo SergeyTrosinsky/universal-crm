@@ -1,4 +1,3 @@
-# Образ приложения Universal CRM. Сборка: docker compose build
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -8,8 +7,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Зависимости отдельным слоем: при правке кода они не переустанавливаются.
-# tzdata нужна для APP_TIMEZONE (в slim-образе базы часовых поясов может не быть).
 COPY requirements.txt ./
 RUN pip install -r requirements.txt tzdata
 
@@ -18,8 +15,6 @@ COPY alembic ./alembic
 COPY app ./app
 COPY docker/entrypoint.sh /entrypoint.sh
 
-# Не root; /data — для временных файлов импорта (том app_data).
-# sed убирает переводы строк Windows, если скрипт пришёл с CRLF.
 RUN sed -i 's/\r$//' /entrypoint.sh \
     && chmod +x /entrypoint.sh \
     && useradd --system --uid 10001 --home-dir /app crm \

@@ -32,7 +32,7 @@ class Status(TimestampMixin, Base):
     color: Mapped[str] = mapped_column(String(7), default="#6B7280")
     kind: Mapped[StatusKind] = mapped_column(str_enum(StatusKind, "status_kind"), default=StatusKind.OPEN)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
-    is_default: Mapped[bool] = mapped_column(Boolean, default=False)  # ставится новым сделкам
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     deals: Mapped[list[Deal]] = relationship(back_populates="status")

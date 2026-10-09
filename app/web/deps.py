@@ -26,7 +26,7 @@ def get_web_user(request: Request, db: Session = Depends(get_db)) -> User:
     if user is None:
         target = request.url.path + (f"?{request.url.query}" if request.url.query else "")
         raise LoginRequired(target)
-    request.state.ui = settings_service.ui(db)  # название CRM и термины для шаблонов
+    request.state.ui = settings_service.ui(db)
     return user
 
 

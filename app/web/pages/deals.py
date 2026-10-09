@@ -132,7 +132,6 @@ def _form_page(request, user, db, *, deal=None, form=None, cf_values=None, error
     ctx = {
         "deal": deal,
         "form": form,
-        # общие поля + поля доступных в форме шаблонов (поля скрытых шаблонов не показываем)
         "fields": [f for f in deal_service.active_fields(db) if f.template_id is None or f.template_id in template_ids],
         "templates": templates,
         "cf_values": cf_values or {},
